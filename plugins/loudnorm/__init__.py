@@ -21,14 +21,17 @@ def lufs_normalize(audio, sample_rate, target_lufs: float = -14.0):
     import pyloudnorm as pyln
 
     audio = np.asarray(audio, dtype=np.float32)
-    meter = pyln.Meter(int(sample_rate))
-    # pyloudnorm expects (channels, samples) float; mono needs 2-D.
+    # pyloudnorm expects (channels, samples) float, max 5 channels.
     measure = audio if audio.ndim == 2 else audio[None, :]
-    loudness = meter.integrated_loudness(measure)
+    if measure.shape[0] > 5:
+        # Downmix to mono if more than 5 channels (pyloudnorm limit).
+        measure = measure.mean(axis=0, keepdims=True)
+    meter = pyln.Meter(int(sample_rate))
+    loudness = meter.integrated_loudness(measure.T)  # pyloudnorm wants (samples, channels)
     if not np.isfinite(loudness):
-        # All-silent or degenerate input; return unchanged.
         return audio
-    normalized = pyln.normalize.loudness(measure, loudness, target_lufs)
+    normalized = pyln.normalize.loudness(measure.T, loudness, target_lufs)
+    normalized = normalized.T  # back to (channels, samples)
     return normalized[0] if audio.ndim == 1 else normalized
 
 
