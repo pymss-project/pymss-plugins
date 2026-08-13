@@ -1,0 +1,9 @@
+[project]
+name = "pymss-plugin-spectral"
+version = "0.1.0"
+description = "pymss plugin: parametric EQ and filters (scipy biquad)"
+requires-python = ">=3.10"
+dependencies = ["pymss", "scipy"]
+
+[project.entry-points."pymss.plugins"]
+spectral = "spectral"

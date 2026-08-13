@@ -3,5 +3,21 @@
   "loudnorm": {
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/loudnorm"
+  },
+  "timing": {
+    "url": "https://github.com/pymss-project/pymss-plugins",
+    "subpath": "plugins/timing"
+  },
+  "dynamics": {
+    "url": "https://github.com/pymss-project/pymss-plugins",
+    "subpath": "plugins/dynamics"
+  },
+  "spectral": {
+    "url": "https://github.com/pymss-project/pymss-plugins",
+    "subpath": "plugins/spectral"
+  },
+  "analysis": {
+    "url": "https://github.com/pymss-project/pymss-plugins",
+    "subpath": "plugins/analysis"
   }
 }

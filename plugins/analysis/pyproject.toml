@@ -1,0 +1,9 @@
+[project]
+name = "pymss-plugin-analysis"
+version = "0.1.0"
+description = "pymss plugin: audio analysis and measurement (LUFS, true peak, RMS, DR, spectrum)"
+requires-python = ">=3.10"
+dependencies = ["pymss", "pyloudnorm", "scipy"]
+
+[project.entry-points."pymss.plugins"]
+analysis = "analysis"

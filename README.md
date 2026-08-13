@@ -18,7 +18,11 @@ pymss plugins list            # show installed plugins + load status
 
 | Name | Capability | Description |
 |---|---|---|
-| [`loudnorm`](./plugins/loudnorm) | `lufs_normalize` | LUFS-based loudness normalization (broadcast/streaming standard) |
+| [`loudnorm`](./plugins/loudnorm) | `lufs_normalize` | LUFS loudness normalization |
+| [`timing`](./plugins/timing) | `pitch_shift`, `time_stretch` | Pitch-shift / time-stretch (librosa) |
+| [`dynamics`](./plugins/dynamics) | `compressor`, `limiter`, `expander`, `multiband_compressor`, `deesser` | Dynamics processing (pedalboard) |
+| [`spectral`](./plugins/spectral) | `highpass`/`lowpass`/`bandpass`/`notch`, `peak_eq`, `lowshelf`/`highshelf`, `parametric_eq`, `baxandall_eq` | Filters and parametric EQ (scipy) |
+| [`analysis`](./plugins/analysis) | `measure_lufs`, `measure_true_peak`, `measure_rms`, `measure_dynamic_range`, `spectrum_analyze` | Read-only audio measurement (pyloudnorm) |
 
 ## Write a plugin
 

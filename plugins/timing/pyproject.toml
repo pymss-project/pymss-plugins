@@ -1,0 +1,9 @@
+[project]
+name = "pymss-plugin-timing"
+version = "0.1.0"
+description = "pymss plugin: pitch-shift and time-stretch (librosa)"
+requires-python = ">=3.10"
+dependencies = ["pymss", "librosa"]
+
+[project.entry-points."pymss.plugins"]
+timing = "timing"
