@@ -1,0 +1,7 @@
+{
+  "_comment": "Official pymss plugin registry. Each entry maps a short install name to its source. Values may be a plain git URL string, or an object {url, subpath} for plugins that live in a subdirectory of a collection repo. To add a plugin, send a PR editing this file.",
+  "loudnorm": {
+    "url": "https://github.com/pymss-project/pymss-plugins",
+    "subpath": "plugins/loudnorm"
+  }
+}
