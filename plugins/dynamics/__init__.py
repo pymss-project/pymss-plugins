@@ -37,21 +37,23 @@ def compressor(audio, sample_rate, threshold_db=0.0, ratio=4.0, attack_ms=1.0,
 def limiter(audio, sample_rate, threshold_db=-3.0, release_ms=100.0):
     """Brick-wall limiter: guarantees output peak ≤ threshold_db (dBFS).
 
-    pedalboard's Limiter normalizes *toward* a loudness target rather than
-    capping peaks, so for a true peak ceiling we pre-gain then soft-clip.
-    threshold_db is the absolute peak ceiling (e.g. -1.0 for streaming).
+    Uses a simple soft-knee clipper. threshold_db is the absolute peak ceiling
+    (e.g. -1.0 for streaming delivery). Independent of pedalboard's Limiter,
+    which normalizes toward a target rather than capping peaks.
     """
     import numpy as np
-    from pedalboard import Limiter
 
     audio = np.asarray(audio, dtype=np.float32)
-    ceiling = 10 ** (threshold_db / 20.0)
-    # Normalize to ceiling, then soft-clip via pedalboard Limiter at 0 dB to
-    # catch any overshoot without hard clipping artifacts.
+    ceiling = float(10 ** (threshold_db / 20.0))
+    # Soft-clip with tanh scaled so |tanh(x)| ≤ 1, then scale to ceiling.
+    # This preserves relative dynamics while guaranteeing the peak ceiling.
     peak = float(np.max(np.abs(audio))) or 1.0
-    if peak > 0:
-        audio = audio * (ceiling / peak)
-    return _apply(Limiter, audio, sample_rate, threshold_db=0.0, release_ms=release_ms)
+    if peak <= ceiling:
+        return audio  # already under ceiling
+    # Normalize to unity, soft-clip, scale to ceiling.
+    norm = audio / peak
+    out = np.tanh(norm * 1.5) / np.tanh(1.5) * ceiling
+    return out.astype(np.float32)
 
 
 def expander(audio, sample_rate, threshold_db=-50.0, ratio=2.0, attack_ms=1.0,
