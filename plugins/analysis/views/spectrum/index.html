@@ -8,7 +8,7 @@
 <body>
   <div class="pymss-card">
     <h3 class="pymss-title">频谱分析</h3>
-    <p class="pymss-subtitle">Studio 主题自动跟随 · SDK 演示页</p>
+    <p class="pymss-subtitle">分析音频的频率分布与幅度。</p>
     <div class="pymss-row" style="margin-bottom:10px">
       <button class="pymss-btn pymss-btn--primary" id="pick">选择音频</button>
       <button class="pymss-btn" id="run" disabled>分析</button>
@@ -20,18 +20,26 @@
 <script>
 let picked = null
 pick.onclick = async () => {
-  const r = await pymss.pickAudio()
-  if (r && r.path) { picked = r.path; file.textContent = picked; run.disabled = false }
+  try {
+    await pymss.ready()
+    const r = await pymss.pickAudio()
+    if (r && r.path) { picked = r.path; file.textContent = picked; run.disabled = false }
+  } catch (e) { out.textContent = '错误: ' + e.message }
 }
 run.onclick = async () => {
+  if (!picked) return
+  run.disabled = true
+  pick.disabled = true
+  bar.style.width = '0%'
   out.textContent = '运行中…'
   try {
     const result = await pymss.startOperation('pymss.analysis.spectrum', { n_fft: 2048 }, { audio: { kind: 'file', path: picked } }, (p) => {
-      if (p.completed != null && p.total) bar.style.width = Math.round(100 * p.completed / p.total) + '%'
+      if (Number.isFinite(p.fraction)) bar.style.width = Math.round(100 * Math.max(0, Math.min(1, p.fraction))) + '%'
     })
     out.textContent = JSON.stringify(result, null, 2).slice(0, 2000)
     bar.style.width = '100%'
   } catch (e) { out.textContent = '错误: ' + e.message }
+  finally { run.disabled = !picked; pick.disabled = false }
 }
 </script>
 </body>

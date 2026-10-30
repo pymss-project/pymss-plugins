@@ -1,16 +1,70 @@
 [project]
 name = "pymss-plugin-spectral"
-version = "0.1.0"
+version = "0.2.0"
 description = "pymss plugin: parametric EQ and filters (scipy biquad)"
 requires-python = ">=3.10"
 dependencies = ["scipy"]
 
-[project.entry-points."pymss.plugins"]
-spectral = "spectral"
-
 [tool.pymss.plugin]
 id = "pymss.spectral"
-api_version = 1
+api_version = 2
+requires_pymss = ">=2.2"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.spectral.highpass"
+title = "Highpass Filter"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.spectral.lowpass"
+title = "Lowpass Filter"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.spectral.peak_eq"
+title = "Peak EQ"
+
+[tool.pymss.studio]
+
+sdk_version = 1
+required_capabilities = [
+    "app.info",
+    "files.pickAudio",
+    "files.reveal",
+    "operations.cancel",
+    "operations.describe",
+    "operations.start",
+    "settings.read",
+    "settings.write",
+    "ui.overlay",
+]
+tags = ["eq", "filter", "spectral", "biquad"]
+category = "edit"
+
+[tool.pymss.studio.locales."en"]
+title = "EQ and filters"
+description = "Shape frequency ranges with high-pass, low-pass and parametric EQ filters."
+
+[tool.pymss.studio.locales."en".operations]
+"pymss.spectral.highpass" = "Highpass Filter"
+"pymss.spectral.lowpass" = "Lowpass Filter"
+"pymss.spectral.peak_eq" = "Peak EQ"
+
+[tool.pymss.studio.locales."zh-CN"]
+title = "均衡与滤波"
+description = "使用高通、低通与参数均衡调整音频频段。"
+tags = ["均衡", "滤波", "频段"]
+
+[tool.pymss.studio.locales."zh-CN".operations]
+"pymss.spectral.highpass" = "高通滤波"
+"pymss.spectral.lowpass" = "低通滤波"
+"pymss.spectral.peak_eq" = "参数均衡"
+
+[[tool.pymss.studio.views]]
+id = "tool"
+title = "EQ and Filters"
+entry = "ui/dist/index.html"
+component = "ui/src/Tool.vue"
+placements = ["tool"]
+permissions = ["ui.overlay", "operations", "files", "settings", "app.info"]
 
 [[tool.pymss.plugin.contributions.nodes]]
 type = "SpectralHighpass"

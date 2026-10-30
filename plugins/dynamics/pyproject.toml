@@ -1,16 +1,70 @@
 [project]
 name = "pymss-plugin-dynamics"
-version = "0.1.0"
+version = "0.2.0"
 description = "pymss plugin: dynamics processing (pedalboard)"
 requires-python = ">=3.10"
 dependencies = ["pedalboard"]
 
-[project.entry-points."pymss.plugins"]
-dynamics = "dynamics"
-
 [tool.pymss.plugin]
 id = "pymss.dynamics"
-api_version = 1
+api_version = 2
+requires_pymss = ">=2.2"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.dynamics.compressor"
+title = "Compressor"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.dynamics.limiter"
+title = "Limiter"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.dynamics.deesser"
+title = "De-esser"
+
+[tool.pymss.studio]
+
+sdk_version = 1
+required_capabilities = [
+    "app.info",
+    "files.pickAudio",
+    "files.reveal",
+    "operations.cancel",
+    "operations.describe",
+    "operations.start",
+    "settings.read",
+    "settings.write",
+    "ui.overlay",
+]
+tags = ["dynamics", "compressor", "limiter", "mastering"]
+category = "edit"
+
+[tool.pymss.studio.locales."en"]
+title = "Dynamics"
+description = "Control dynamics with compression, peak limiting and de-essing."
+
+[tool.pymss.studio.locales."en".operations]
+"pymss.dynamics.compressor" = "Compressor"
+"pymss.dynamics.limiter" = "Limiter"
+"pymss.dynamics.deesser" = "De-esser"
+
+[tool.pymss.studio.locales."zh-CN"]
+title = "动态处理"
+description = "使用压缩、限幅和齿音消除控制音频动态。"
+tags = ["压缩", "限幅", "齿音消除"]
+
+[tool.pymss.studio.locales."zh-CN".operations]
+"pymss.dynamics.compressor" = "动态压缩"
+"pymss.dynamics.limiter" = "峰值限幅"
+"pymss.dynamics.deesser" = "齿音消除"
+
+[[tool.pymss.studio.views]]
+id = "tool"
+title = "Dynamics"
+entry = "ui/dist/index.html"
+component = "ui/src/Tool.vue"
+placements = ["tool"]
+permissions = ["ui.overlay", "operations", "files", "settings", "app.info"]
 
 [[tool.pymss.plugin.contributions.nodes]]
 type = "DynamicsCompressor"

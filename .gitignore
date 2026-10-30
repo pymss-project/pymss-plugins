@@ -5,6 +5,10 @@ __pycache__/
 
 # Distribution / packaging
 dist/
+!plugins/*/ui/dist/
+!plugins/*/ui/dist/**
+!examples/*/ui/dist/
+!examples/*/ui/dist/**
 build/
 *.egg-info/
 *.egg
@@ -18,6 +22,7 @@ ENV/
 
 # Testing & cache
 .pytest_cache/
+.ruff_cache/
 .coverage
 .coverage.*
 htmlcov/
@@ -41,3 +46,4 @@ Thumbs.db
 
 # Project temporary
 .tmp/
+node_modules/
