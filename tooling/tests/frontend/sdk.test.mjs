@@ -36,14 +36,35 @@ async function host(t, saved = {}) {
     })
   } }
   const window = { parent, addEventListener(name, callback) { callbacks[name] = callback } }
+  const properties = new Map(), classes = new Set()
+  const document = { documentElement: {
+    style: { setProperty: (key, value) => properties.set(key, value), removeProperty: key => properties.delete(key) },
+    classList: { toggle: (key, enabled) => enabled ? classes.add(key) : classes.delete(key) },
+  } }
   scope.run(() => vm.runInNewContext(code, {
-    exports, window, structuredClone, ref, watch, setTimeout, clearTimeout,
+    exports, window, document, structuredClone, ref, watch, setTimeout, clearTimeout,
     presentation: {}, useSettingsStore: () => ({}), __FILE_TOOL__: 'slicer', __OPERATION_ID__: 'pymss.slicer.tool',
     __STUDIO_REQUIREMENTS__: requirements,
   }))
   await exports.connect()
-  return { sdk: exports, calls, scope }
+  return { sdk: exports, calls, scope, receive, properties, classes }
 }
+
+test('log overlays anchor the form without retaining stale or invalid layout coordinates', async t => {
+  const { receive, properties, classes } = await host(t)
+  const send = params => receive({ jsonrpc: '2.0', method: 'host.overlay', params })
+  send({ open: true, bounds: { left: 304, top: -30, width: 910 } })
+  assert.equal(classes.has('tool-overlay-anchored'), true)
+  assert.equal(properties.get('--tool-overlay-top'), '-30px')
+  assert.equal(properties.get('--tool-overlay-width'), '910px')
+  send({ open: true, bounds: { left: 0, top: 0, width: '100vw' } })
+  assert.equal(classes.size, 0)
+  assert.equal(properties.size, 0)
+  send({ open: true, bounds: { left: 0, top: 0, width: 640 } })
+  send({ open: false })
+  assert.equal(classes.size, 0)
+  assert.equal(properties.size, 0)
+})
 
 test('SDK transports reactive nested inputs as public JSON values', async t => {
   const { sdk, calls } = await host(t)

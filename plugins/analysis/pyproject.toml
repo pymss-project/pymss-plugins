@@ -75,9 +75,10 @@ permissions = ["ui.overlay", "operations", "files", "settings", "app.info"]
 id = "spectrum"
 title = "Spectrum analysis"
 entry = "views/spectrum/index.html"
+component = "ui/src/SpectrumTool.vue"
 placements = ["tool"]
 operation = "pymss.analysis.spectrum"
-permissions = ["operations", "files"]
+permissions = ["ui.overlay", "operations", "files", "settings", "app.info"]
 
 [[tool.pymss.plugin.contributions.nodes]]
 type = "AnalysisMeasureLUFS"

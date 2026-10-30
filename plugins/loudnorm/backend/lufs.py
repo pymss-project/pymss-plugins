@@ -34,6 +34,11 @@ def integrated_loudness(audio, sample_rate, *, channel_layout=None):
     channels = av.AudioLayout(channel_layout).channels
     if len(channels) != audio.shape[0]:
         raise ValueError("channel_layout does not match the audio channel count")
+    # WAV files without speaker masks can decode as "1 channels"/"2 channels"
+    # with unnamed speakers. Their conventional mono/stereo mapping is safe;
+    # larger anonymous layouts still require explicit speaker positions.
+    if len(channels) in (1, 2) and all(channel.name == "NONE" for channel in channels):
+        channels = av.AudioLayout({1: "mono", 2: "stereo"}[len(channels)]).channels
 
     # Conventional FFmpeg speaker positions, matching its ebur128 scanner.
     weights = {"FL": 1.0, "FR": 1.0, "FC": 1.0, "FLC": 1.0, "FRC": 1.0,
