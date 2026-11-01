@@ -19,7 +19,8 @@
     "run": "运行操作",
     "running": "正在处理…",
     "statusHint": "输出文件与分析结果。",
-    "statusTitle": "处理结果"
+    "statusTitle": "处理结果",
+    "definitionChanged": "操作定义已更新。请核对刷新后的参数，然后重新运行。"
   },
   "tools": {
     "activityLog": "运行记录",

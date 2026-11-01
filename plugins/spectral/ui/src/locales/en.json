@@ -19,7 +19,8 @@
     "run": "Run operation",
     "running": "Processing…",
     "statusHint": "Output files and analysis results.",
-    "statusTitle": "Results"
+    "statusTitle": "Results",
+    "definitionChanged": "The operation definition was updated. Review the refreshed parameters, then run it again."
   },
   "tools": {
     "activityLog": "Activity log",

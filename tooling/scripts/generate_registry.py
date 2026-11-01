@@ -13,6 +13,7 @@ if not __package__:
     sys.path.insert(0, str(ROOT))
 
 from tooling.scripts.studio_requirements import studio_requirements  # noqa: E402
+from tooling.scripts.operation_metadata import validate_snapshot  # noqa: E402
 
 
 def render_registry(root: Path = ROOT, *, ref: str | None = None, release: bool = False) -> dict:
@@ -46,6 +47,8 @@ def render_registry(root: Path = ROOT, *, ref: str | None = None, release: bool 
             raise ValueError(f"Invalid plugin tags: {path.parent.name}")
         if plugin.get("api_version") != 2:
             raise ValueError(f"Plugin manifest must use api_version 2: {path.parent.name}")
+        if release:
+            validate_snapshot(path.parent, data)
         catalog[plugin["id"]] = {
             "id": plugin["id"], "api_version": plugin["api_version"],
             "url": repository["url"], "subpath": path.parent.relative_to(root).as_posix(),

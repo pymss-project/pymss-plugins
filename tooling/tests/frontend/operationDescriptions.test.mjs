@@ -29,3 +29,22 @@ test('failed metadata remains retryable and operations do not share cached schem
   assert.deepEqual(await descriptions.get('two'), { id: 'two' })
   assert.deepEqual(requests, ['one', 'one', 'two'])
 })
+
+test('invalidating a pending description cannot replace or remove a newer request', async () => {
+  const requests = []
+  const descriptions = operationDescriptions(() => new Promise(resolve => requests.push(resolve)))
+  const oldRequest = descriptions.get('one')
+  await Promise.resolve()
+  descriptions.invalidate('one')
+  const newRequest = descriptions.get('one')
+  await Promise.resolve()
+  requests[0]({ revision: 1 })
+  await oldRequest
+  assert.equal(descriptions.peek('one'), undefined)
+  assert.equal(descriptions.get('one'), newRequest)
+  requests[1]({ revision: 2 })
+  await newRequest
+  assert.deepEqual(descriptions.peek('one'), { revision: 2 })
+  descriptions.invalidate('one')
+  assert.equal(descriptions.peek('one'), undefined)
+})
