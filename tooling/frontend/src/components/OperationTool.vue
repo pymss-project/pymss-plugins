@@ -7,11 +7,12 @@ import AudioToolHeader from '@/features/audio-tools/shared/AudioToolHeader.vue'
 import ToolPanelShell from './ToolPanelShell.vue'
 import ToolActivityDialog from './ToolActivityDialog.vue'
 import { schemaDefaults, supportsOperationSchema, validateParameters, type OperationSchema } from './operationSchema'
+import { operationDescriptions } from './operationDescriptions'
 
 type Port = { type?: string }
-type Description = { id: string; inputs: Record<string, Port>; params: OperationSchema; outputs: Record<string, Port> }
+type Description = { id: string; inputs: Record<string, Port>; params: OperationSchema; outputs: Record<string, Port>; specDigest?: string }
 type Output = { kind?: string; path?: string; value?: unknown }
-const props = defineProps<{ config: { titleKey: string; descriptionKey?: string; operations: Array<{ id: string; titleKey: string }>; layout?: 'split' | 'stacked' } }>()
+const props = defineProps<{ config: { titleKey: string; descriptionKey?: string; operations: Array<{ id: string; titleKey: string; inputs?: string[] }>; layout?: 'split' | 'stacked' } }>()
 const { t, te } = useI18n()
 const savedOperation = toolRef('operation', props.config.operations[0]?.id || '')
 const operationId = ref(props.config.operations.some(item => item.id === savedOperation.value) ? savedOperation.value : props.config.operations[0]?.id || '')
@@ -36,7 +37,7 @@ let elapsedTimer: ReturnType<typeof setInterval> | undefined
 const elapsedLabel = computed(() => `${String(Math.floor(elapsed.value / 60)).padStart(2, '0')}:${String(elapsed.value % 60).padStart(2, '0')}`)
 function stopElapsed() { clearInterval(elapsedTimer); elapsedTimer = undefined }
 const fields = computed(() => Object.entries(spec.value?.params.properties || {}))
-const audioInputs = computed(() => Object.keys(spec.value?.inputs || {}))
+const audioInputs = computed(() => spec.value ? Object.keys(spec.value.inputs) : props.config.operations.find(item => item.id === operationId.value)?.inputs || [])
 const errors = computed(() => validateParameters(spec.value?.params, params.value))
 const canRun = computed(() => !!spec.value && !loading.value && !running.value && !picking.value && audioInputs.value.every(name => typeof paths.value[name] === 'string' && paths.value[name].trim()) && !Object.keys(errors.value).length)
 const stateLabel = computed(() => t(`pluginTools.${error.value ? 'failed' : running.value ? 'running' : cancelled.value ? 'cancelled' : results.value ? 'completed' : loading.value ? 'loading' : 'ready'}`))
@@ -45,16 +46,26 @@ function parameterLabel(name: string, field: Record<string, unknown>) {
   return te(key) || te(key, 'en') ? t(key) : typeof field.title === 'string' ? field.title : name
 }
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value)
+const forcedDescriptions = new Set<string>()
+const descriptions = operationDescriptions(async (operation: string) => {
+  const value = await call<Description>('operations.describe', { operation, ...(forcedDescriptions.has(operation) ? { refresh: true } : {}) }).promise
+  if (value?.specDigest !== undefined && (typeof value.specDigest !== 'string' || !/^[0-9a-f]{64}$/.test(value.specDigest))) throw new Error(t('pluginTools.invalidSpec'))
+  if (!value || value.id !== operation || !record(value.inputs) || !record(value.outputs) || !record(value.params) || !record(value.params.properties) || !Object.values(value.inputs).every(port => record(port) && port.type === 'audio') || !supportsOperationSchema(value.params)) throw new Error(t('pluginTools.invalidSpec'))
+  forcedDescriptions.delete(operation)
+  return value
+})
+const parametersByOperation = new Map<string, Record<string, unknown>>()
 async function describe() {
+  if (spec.value) parametersByOperation.set(spec.value.id, { ...params.value })
   const current = ++generation, operation = operationId.value
-  spec.value = null; error.value = ''; results.value = null; progress.value = null; cancelled.value = false; loading.value = true
+  spec.value = descriptions.peek(operation) || null; error.value = ''; results.value = null; progress.value = null; cancelled.value = false; loading.value = !spec.value
   savedOperation.value = operation
+  if (spec.value) { params.value = parametersByOperation.get(operation) || schemaDefaults(spec.value.params); return }
   try {
-    const value = await call<Description>('operations.describe', { operation }).promise
+    const value = await descriptions.get(operation)
     if (disposed || current !== generation) return
-    if (!value || value.id !== operation || !record(value.inputs) || !record(value.outputs) || !record(value.params) || !record(value.params.properties) || !Object.values(value.inputs).every(port => record(port) && port.type === 'audio') || !supportsOperationSchema(value.params)) throw new Error(t('pluginTools.invalidSpec'))
     spec.value = value
-    params.value = schemaDefaults(value.params)
+    params.value = parametersByOperation.get(operation) || schemaDefaults(value.params)
   } catch (failure) { if (!disposed && current === generation) error.value = failure instanceof Error ? failure.message : String(failure) }
   finally { if (!disposed && current === generation) loading.value = false }
 }
@@ -72,7 +83,7 @@ const enumValue = (name: string, values: unknown[]) => { const index = values.fi
 function chooseEnum(name: string, values: unknown[], index: number | null) { if (index === null) delete params.value[name]; else params.value[name] = values[index] }
 async function run() {
   if (!canRun.value || !spec.value) return
-  const snapshot = { operation: spec.value.id, inputs: Object.fromEntries(audioInputs.value.map(name => [name, { kind: 'file', path: paths.value[name].trim() }])), params: Object.fromEntries(Object.entries(params.value).filter(([, value]) => value !== undefined && value !== null && value !== '')) }
+  const snapshot = { operation: spec.value.id, inputs: Object.fromEntries(audioInputs.value.map(name => [name, { kind: 'file', path: paths.value[name].trim() }])), params: Object.fromEntries(Object.entries(params.value).filter(([, value]) => value !== undefined && value !== null && value !== '')), ...(spec.value.specDigest ? { expectedSpecDigest: spec.value.specDigest } : {}) }
   error.value = ''; results.value = null; cancelled.value = false; progress.value = null; running.value = true
   progressMessage.value = ''; elapsed.value = 0
   activity.value = []; recordActivity(t('pluginTools.running'))
@@ -94,6 +105,15 @@ async function run() {
     if (disposed) return
     const item = failure as Error & { code?: string }
     cancelled.value = item.code === 'TASK_CANCELLED'; error.value = cancelled.value ? '' : item.message
+    if (item.code === 'OPERATION_SPEC_CHANGED') {
+      descriptions.invalidate(snapshot.operation)
+      forcedDescriptions.add(snapshot.operation)
+      parametersByOperation.delete(snapshot.operation)
+      spec.value = null
+      await describe()
+      if (disposed) return
+      if (!error.value) error.value = t('pluginTools.definitionChanged')
+    }
     recordActivity(cancelled.value ? t('pluginTools.cancelled') : error.value)
   } finally { stopElapsed(); elapsed.value = Math.floor((Date.now() - startedAt) / 1000); activeId = null; running.value = false; cancelling.value = false }
 }
@@ -139,15 +159,16 @@ onBeforeUnmount(() => { disposed = true; generation += 1; stopElapsed() })
         <small v-if="errors[name]" class="operation-error">{{ t('pluginTools.invalid') }}</small>
       </div>
     </div>
+    <p v-if="loading" role="status" class="operation-detail">{{ t('pluginTools.loading') }}</p>
     <div class="audio-tool-actions"><n-button id="run" type="primary" :disabled="!canRun" :loading="running" @click="run">{{ t('pluginTools.run') }}</n-button></div>
     <n-alert v-if="error" id="error" type="error" :bordered="false">{{ error }}</n-alert>
     <n-alert v-else-if="cancelled" type="info" :bordered="false">{{ t('pluginTools.cancelled') }}</n-alert>
     <n-button v-if="!spec && !loading" id="retry" secondary @click="describe">{{ t('pluginTools.retry') }}</n-button>
     <template #status>
       <section v-if="results" id="results" class="tool-result-stack">
-        <div v-for="(value, name) in results" :key="name" class="tool-result-section"><strong>{{ name }}</strong>
+        <div v-for="(value, name) in results" :key="name" class="tool-result-section"><slot name="result" :port="name" :output="value" :operation="operationId"><strong>{{ name }}</strong>
           <template v-if="value.kind === 'audio_file' && value.path"><span class="operation-path">{{ value.path }}</span><n-button text size="small" @click="reveal(value.path)">{{ t('tools.openOutputLocation') }}</n-button></template>
-          <pre v-else class="tool-result-json">{{ outputText(value) }}</pre>
+          <pre v-else class="tool-result-json">{{ outputText(value) }}</pre></slot>
         </div>
       </section>
     </template>

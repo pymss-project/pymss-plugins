@@ -111,6 +111,23 @@ build_script = "scripts/build.mjs"
 
 ## SDK 使用与生命周期
 
+### 操作描述快照
+
+官方插件随包提供根目录 `operations.json`。它由实际注册结果生成，供 Studio 构建表单时读取，查询命中不导入插件或推理框架。快照格式版本与插件 API 版本分开；当前格式为 `1`，描述现有 API v2，不改变 `setup()` 或旧工作流的执行方式。
+
+修改后端代码、清单或影响注册的资源后，在安装了 `pymss>=2.2` 的开发环境中执行：
+
+```bash
+python -X utf8 tooling/scripts/generate_operation_metadata.py
+python -X utf8 tooling/scripts/generate_operation_metadata.py --check
+```
+
+可以用 `--plugin analysis` 或 `--plugin pymss.analysis` 限定导出对象，`--plugins-dir` 指定插件集合。导出是可信构建步骤，只执行注册、不执行处理操作；用户浏览页面时不运行导出器。正式目录生成还会检查快照身份、声明集合和源摘要。
+
+快照绑定后端与包资源摘要，忽略页面、安装 sidecar 和生成文件；文本行尾统一处理。不要手工修改描述。缺少或失效的 v2 快照仍可回退到实际注册，并在当前运行环境建立缓存。平台/可选依赖造成的真实接口差异以实际注册为准，不将构建机器结果作为跨平台保证。
+
+`operations.describe` 在描述中附加 `specDigest`。使用已取得的描述启动操作时，可以传入 `expectedSpecDigest`；不一致会返回 `OPERATION_SPEC_CHANGED`，本次处理不会执行。共享 `OperationTool` 自动清除旧描述和参数缓存、强制刷新定义，并要求用户核对后重试，输入路径保留，不自动重新处理。自定义页面可通过 SDK 的 `startOperation` options 传入该字段，使用 `describeOperation(id, { refresh: true })` 获取实际定义。旧页面不传摘要时保持原参数校验路径。
+
 只声明实际使用的接口权限。通过 SDK 获取文件、输出目录、设置和任务结果，不直接调用 Tauri。
 
 桥接参数使用普通 JSON 数据，不发送 Vue 代理、函数或音频缓冲对象。文件输入通过路径描述符传入，音频 Artifact 在 Worker 内解析。
@@ -153,3 +170,32 @@ SDK 中的运行时组件和模型管理目前有具体支持范围，例如 Fun
 参考插件的测试覆盖增益计算、输入不变、短多声道布局、峰值保护、非有限值、溢出、进度、取消和复制包独立加载。UI 还应验收连接失败、表单验证、主题与语言切换、结果、日志、设置失败和取消失败重试。
 
 发布前应在临时运行环境执行安装、运行、更新、禁用和卸载，确认旧版在失败时仍可使用。不要用开发机已经存在的模块路径掩盖缺失依赖。
+
+
+## Rust / 原生命令开发入口（尚未发布）
+
+`examples/rust_text` 验证了用 Rust CLI 接入同一个 Operation、工作流和 Studio 页面。核心算法使用 Rust 标准库；包内 `setup()` 通过公共 `register_commands` 读取声明，不自行编写子进程胶水。详细构建与执行约定见 [示例说明](../examples/rust_text/README.md)。
+
+此能力依赖尚未发布的 pymss command adapter 和支持 `files.pickFile` 的 Studio。PyPI pymss 2.2.0 不包含它，不能仅把示例加入正式目录后要求现有用户安装。当前 `format_version = 1` 是独立命令描述格式，现有 `api_version = 2` 和 SDK 1 保持兼容。
+
+普通用户安装应使用已经构建的对应平台程序包。示例构建脚本只供开发者显式执行，安装器不会自动安装 Rust、运行 Cargo 或编译源码。目标映射不代表六个平台都已有发布物；目前只有 Windows x86_64 的本地调用链证据，其他目标仍待实际构建、系统依赖、签名和运行验证。
+
+command 适配只报告宿主启动/发布阶段，原始 stdout/stderr 作为有界诊断，不当作 Worker 回调协议。需要细粒度进度、反向宿主服务、交互或常驻状态时，应等待 rpc-process 双向协议，不能把命令输出等同于通用 callback。
+
+
+## 任务内双向 RPC 开发入口（尚未发布）
+
+`examples/rust_rpc_text` 在独立进程里主动请求 `host.taskInfo` 与 `host.fileInfo`，再处理输入文件并发出细粒度进度。示例保留 v2 setup，以公共 `register_rpc_processes` 注册，说明见 [Rust RPC 模板](../examples/rust_rpc_text/README.md)。
+
+这是任务内 callback：请求有独立 ID、宿主固定的插件/操作/任务身份、声明权限、输入名授权、截止时间和取消语义。宿主没有提供服务时返回 `HOST_UNAVAILABLE`，不会默认同意或打开交互窗口。协议使用有界 NDJSON/JSON-RPC；普通 CLI 日志不能当协议回调。
+
+新能力尚未随 pymss 发布，PyPI 2.2.0 不包含它。现阶段不开放 GUI 请求、任意操作递归调用、全局事件或常驻 session；未实现新的 Studio/Worker 双向交互桥。正常用户应安装对应平台的预编译程序，不能把源码 checkout 的 Cargo 构建当安装步骤。
+
+
+## 独立 Python 进程开发入口（尚未发布）
+
+`examples/python_rpc_text` 使用与 Rust RPC 相同的任务协议，在独立 Python profile 中执行；详见 [Python RPC 模板](../examples/python_rpc_text/README.md)。每个操作使用 `python = "peer.py"` 替代 native targets，包级 `[tool.pymss.python]` 指向含平台和 SHA-256 的完整本地 wheel 锁。目标进程不需要导入 pymss，不借用宿主或其他插件的依赖。
+
+Studio 通过现有安装事务准备独立环境；CLI 可显式执行 `pymss ops prepare-python`。profile 保持稳定路径并保存本次 peer 代码/资源，移动插件代码目录不会搬移 venv。安装、更新、准备失败均不修改旧可用环境；执行租约避免正在运行的环境被立即清理。旧 v2 handler 不会因为有插件目录就自动获得隔离，需明确使用进程入口。
+
+当前只支持随包提供的本地 wheel 闭包，不在用户安装时联网解析、编译依赖或选择另一版本的 Python。PyPI pymss 2.2.0 不包含此能力；发布前须设置实际提供该能力的最低内核版本。Windows 标准 Python 3.12 已有本地验证，嵌入式安装包、macOS/Linux 和 ARM64 仍需独立验收。该模板没有进入官方目录或预装。

@@ -19,7 +19,8 @@
     "run": "Run operation",
     "running": "Processing…",
     "statusHint": "Output files and analysis results.",
-    "statusTitle": "Results"
+    "statusTitle": "Results",
+    "definitionChanged": "The operation definition was updated. Review the refreshed parameters, then run it again."
   },
   "tools": {
     "activityLog": "Activity log",
@@ -39,5 +40,23 @@
   },
   "parameters": {
     "n_fft": "FFT size"
+  },
+  "analysis": {
+    "metrics": {
+      "lufs": "Integrated loudness",
+      "true_peak_dbtp": "True peak",
+      "sample_peak_dbfs": "Sample peak",
+      "rms_dbfs": "RMS level",
+      "rms_linear": "RMS amplitude"
+    },
+    "hints": {
+      "measure_lufs": "LUFS measures integrated loudness. −∞ indicates silence or a signal below the loudness measurement threshold.",
+      "measure_true_peak": "True peak estimates peaks between samples by oversampling; sample peak measures the original samples. Negative values are below digital full scale.",
+      "measure_rms": "RMS measures average signal energy. dBFS is relative to digital full scale; RMS amplitude is a linear value."
+    },
+    "spectrumLabel": "Audio spectrum, frequency on the horizontal axis and magnitude on the vertical axis",
+    "spectrumDescription": "View the frequency distribution and magnitude at the start of the audio.",
+    "spectrumHint": "Analyzes the first FFT-sized segment, mixing channels to mono. Magnitudes are windowed FFT values in dB, not a whole-file average spectrum or dBFS levels.",
+    "rawData": "View raw data"
   }
 }

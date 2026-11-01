@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -130,9 +131,44 @@ class LoudnessLayoutTests(unittest.TestCase):
     def test_multichannel_layout_is_required_and_validated(self):
         audio = np.tile(self.tone, (6, 1))
         for capability in ("measure_lufs", "lufs_normalize", "measure_dynamic_range"):
-            for layout in (None, "stereo", "5.1.2"):
+            for layout in (None, "stereo", "5.1.2", "6 channels"):
                 with self.subTest(capability=capability, layout=layout), self.assertRaises(ValueError):
                     require_capability(capability)(audio, self.sample_rate, channel_layout=layout)
+
+    def test_count_only_mono_stereo_layouts_match_named_speakers(self):
+        for channels, named in ((1, "mono"), (2, "stereo")):
+            audio = np.tile(self.tone, (channels, 1))
+            for capability in ("measure_lufs", "lufs_normalize", "measure_dynamic_range"):
+                with self.subTest(channels=channels, capability=capability):
+                    measure = require_capability(capability)
+                    expected = measure(audio, self.sample_rate, channel_layout=named)
+                    actual = measure(audio, self.sample_rate, channel_layout=f"{channels} channels")
+                    if isinstance(actual, dict):
+                        self.assertEqual(actual, expected)
+                    else:
+                        np.testing.assert_array_equal(actual, expected)
+                    mismatched = f"{3 - channels} channels"
+                    with self.assertRaisesRegex(ValueError, "channel count"):
+                        measure(audio, self.sample_rate, channel_layout=mismatched)
+
+    def test_float_wav_decode_can_be_measured_and_normalized(self):
+        import soundfile
+        from pymss.audio_io import load_audio
+
+        with tempfile.TemporaryDirectory() as temporary:
+            for channels in (1, 2):
+                with self.subTest(channels=channels):
+                    path = Path(temporary) / f"input-{channels}.wav"
+                    soundfile.write(path, np.tile(self.tone, (channels, 1)).T,
+                                    self.sample_rate, subtype="FLOAT")
+                    decoded, sample_rate, layout = load_audio(str(path), sr=None, mono=False, return_layout=True)
+                    source = AudioArtifact(decoded, sample_rate, channel_layout=layout)
+                    measured = self.runtime.run("pymss.analysis.measure_lufs", inputs={"audio": source}, params={})["report"]["lufs"]
+                    self.assertTrue(np.isfinite(measured))
+                    normalized = self.runtime.run("pymss.loudnorm.normalize", inputs={"audio": source},
+                                                  params={"target_lufs": -18.0})["audio"]
+                    actual = self.runtime.run("pymss.analysis.measure_lufs", inputs={"audio": normalized}, params={})["report"]["lufs"]
+                    self.assertAlmostEqual(actual, -18.0, places=4)
 
     def test_dynamic_range_uses_channel_energy_for_each_complete_block(self):
         block = self.tone[:self.sample_rate * 2 // 5]

@@ -10,6 +10,8 @@
     "test:frontend": "node --test tests/frontend/*.test.mjs",
     "catalog": "python scripts/generate_registry.py",
     "catalog:check": "python scripts/generate_registry.py --check",
+    "metadata": "python scripts/generate_operation_metadata.py",
+    "metadata:check": "python scripts/generate_operation_metadata.py --check",
     "build": "pnpm check:tools && pnpm build:tools && pnpm catalog",
     "build:example": "pnpm --dir ../examples/audio_gain build",
     "test:example": "python -m unittest discover -s ../examples/audio_gain/tests -v",

@@ -44,6 +44,17 @@ window.addEventListener('message', event => {
   if (data.method === 'host.ready') {
     connected = true
     resolveReady()
+  } else if (data.method === 'host.overlay') {
+    const root = document.documentElement
+    const bounds = data.params?.bounds
+    const anchored = data.params?.open === true && bounds
+      && [bounds.left, bounds.top, bounds.width].every(value => typeof value === 'number' && Number.isFinite(value))
+      && bounds.width > 0
+    root.classList.toggle('tool-overlay-anchored', Boolean(anchored))
+    for (const key of ['left', 'top', 'width']) {
+      if (anchored) root.style.setProperty(`--tool-overlay-${key}`, `${bounds[key]}px`)
+      else root.style.removeProperty(`--tool-overlay-${key}`)
+    }
   } else if (data.method === 'host.theme') {
     for (const [key, value] of Object.entries(data.params?.cssVariables || {})) {
       if (/^--[a-z0-9-]+$/i.test(key) && typeof value === 'string') document.documentElement.style.setProperty(key, value)

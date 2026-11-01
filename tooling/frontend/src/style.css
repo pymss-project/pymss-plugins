@@ -22,6 +22,15 @@ html,body,#app { min-width:0; }
 ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 ::-webkit-scrollbar-corner { background: transparent; }
 .tool-activity-open .audio-tool-layout { visibility: hidden; }
+/* The modal teleports to body; keep the form at its original host position. */
+.tool-activity-open.tool-overlay-anchored .audio-tool-layout { visibility: visible; }
+.tool-activity-open.tool-overlay-anchored #app {
+  position: absolute;
+  left: var(--tool-overlay-left);
+  top: var(--tool-overlay-top);
+  width: var(--tool-overlay-width);
+  pointer-events: none;
+}
 .tool-activity-dialog { display: flex; flex-direction: column; }
 .tool-activity-dialog > .n-card__content { min-height: 0; }
 
