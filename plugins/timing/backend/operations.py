@@ -40,6 +40,10 @@ def process(audio, sample_rate, n_steps: float = 0, duration_percent: float = 10
 
 def setup(plugin):
     """Register pitch_shift / time_stretch as capabilities and Operations."""
+    from pymss.plugins import kit
+
+    if any(not callable(getattr(kit, name, None)) for name in ("current_operation_context", "run_native_process")):
+        raise RuntimeError("Timing requires the pymss native-process APIs. Update the pymss core before loading this plugin.")
     from pymss.graph.core import audio_to_numpy, numpy_to_audio
 
     plugin.register_capability(

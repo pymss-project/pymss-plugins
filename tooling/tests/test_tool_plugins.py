@@ -156,7 +156,7 @@ class ViewBuildTests(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         entries = module.component_entries()
-        self.assertEqual(len(entries), 13)
+        self.assertEqual(len(entries), 14)  # 13 tools and the separate spectrum view.
         for entry in entries:
             with self.subTest(plugin=entry["plugin"]):
                 self.assertTrue(Path(entry["component"]).is_relative_to(ROOT / "plugins" / entry["plugin"]))

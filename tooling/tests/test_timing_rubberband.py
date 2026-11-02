@@ -13,6 +13,7 @@ import numpy as np
 
 from pymss.graph.core import AudioArtifact
 from pymss.operations import OperationContext, OperationError, create_runtime
+from pymss.plugins import kit
 from plugins.timing.backend import rubberband
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -21,6 +22,17 @@ ROOT = Path(__file__).resolve().parents[2]
 class TimingValidationTests(unittest.TestCase):
     def setUp(self):
         rubberband._versions.clear()
+
+    def test_setup_rejects_a_kernel_without_native_process_apis(self):
+        from plugins.timing.backend import operations
+        from unittest.mock import Mock
+
+        for name in ("current_operation_context", "run_native_process"):
+            with self.subTest(api=name), patch.object(kit, name, None):
+                plugin = Mock()
+                with self.assertRaisesRegex(RuntimeError, "native-process APIs"):
+                    operations.setup(plugin)
+                self.assertEqual(plugin.mock_calls, [])
 
     def test_invalid_inputs_fail_before_native_process_or_scratch_files(self):
         calls = [
