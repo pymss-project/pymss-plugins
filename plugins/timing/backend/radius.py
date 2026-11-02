@@ -1,7 +1,8 @@
-"""External Radius phase-vocoder adapter. Time stretching stays with Rubber Band."""
+"""Offline pitch and speed processing with the Radius phase vocoder."""
 from __future__ import annotations
 
 import os
+import math
 from pathlib import Path
 import platform
 import shutil
@@ -38,12 +39,13 @@ def executable() -> Path:
     raise ToolError("TIMING_RADIUS_MISSING", "Radius is not installed. Set PYMSS_RADIUS to a radius-rs executable or choose Rubber Band.")
 
 
-def pitch_shift(audio, sample_rate, n_steps: float, bins_per_octave: int = 12):
+def process(audio, sample_rate, n_steps: float = 0, duration_percent: float = 100, *, bins_per_octave: int = 12):
     import soundfile as sf
     from pymss.operations import OperationContext
     from pymss.plugins.kit import ToolError, current_operation_context
 
     steps = _number(n_steps, "n_steps", -24, 24)
+    duration = _number(duration_percent, "duration_percent", 25, 400)
     bins = _number(bins_per_octave, "bins_per_octave", 1, 36)
     if not bins.is_integer():
         raise ValueError("bins_per_octave must be an integer")
@@ -51,25 +53,32 @@ def pitch_shift(audio, sample_rate, n_steps: float, bins_per_octave: int = 12):
     samples, sr = _audio(audio, sample_rate)
     context = current_operation_context() or OperationContext()
     context.check_cancelled()
-    if semitones == 0:
+    if semitones == 0 and duration == 100:
         return samples.copy()
     if sr not in (44100, 48000):
         raise ToolError("TIMING_RADIUS_SAMPLE_RATE_UNSUPPORTED", "Radius VC requires 44100 or 48000 Hz audio; resample the input or choose Rubber Band")
+    # Match Radius's --tempo: 50 halves the duration, 200 doubles it.
+    frames = math.floor(samples.shape[-1] * (duration / 100) + 0.5)
+    if frames < 1:
+        raise ValueError("The requested duration would produce an empty audio output")
     program = executable()
     with tempfile.TemporaryDirectory(prefix="pymss-radius-", dir=os.environ.get("PYMSS_SCRATCH_DIR") or None) as directory:
         work = Path(directory)
         sf.write(work / "input.wav", samples.T, sr, subtype="FLOAT")
         context.report_progress(0.05, "Processing with Radius")
-        # Tempo is deliberately fixed at identity: only Rubber Band owns speed.
         _run([str(program), "input.wav", "output.wav", "--mode", "vc", "--semitones", format(semitones, ".17g"),
-              "--tempo", "100", "--bit-depth", "32f"],
+              "--tempo", format(duration, ".17g"), "--bit-depth", "32f"],
              label="Radius", cwd=work, context=context, timeout=21600, output_limit=65536,
              output_callback=NativeProgress(context, "radius"),
              environment={**os.environ, "RADIUS_PROGRESS": "1", "RADIUS_COLOR": "0", "NO_COLOR": "1"})
         context.check_cancelled()
         output, rate = sf.read(work / "output.wav", dtype="float32", always_2d=True)
         channels = 1 if samples.ndim == 1 else samples.shape[0]
-        if rate != sr or output.shape != (samples.shape[-1], channels) or not np.isfinite(output).all():
+        if rate != sr or output.shape != (frames, channels) or not np.isfinite(output).all():
             raise RuntimeError("Radius returned invalid audio, sample rate, duration or channel count")
         context.report_progress(1.0, "Radius processing completed")
         return np.ascontiguousarray(output[:, 0] if samples.ndim == 1 else output.T)
+
+
+def pitch_shift(audio, sample_rate, n_steps: float, bins_per_octave: int = 12):
+    return process(audio, sample_rate, n_steps, bins_per_octave=bins_per_octave)

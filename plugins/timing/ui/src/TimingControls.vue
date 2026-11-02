@@ -1,14 +1,11 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ params: Record<string, unknown>; errors: Record<string, string>; disabled: boolean }>()
 const { t } = useI18n()
 const radius = computed(() => props.params.algorithm === 'radius')
 const algorithms = computed(() => ['rubberband', 'radius'].map(value => ({ value, label: t(`plugin.algorithms.${value}`) })))
-watch(() => [props.params.algorithm, props.params.speed_percent], () => {
-  if (radius.value && props.params.speed_percent !== 100) props.params.speed_percent = 100
-}, { immediate: true, flush: 'sync' })
 </script>
 
 <template>
@@ -24,10 +21,10 @@ watch(() => [props.params.algorithm, props.params.speed_percent], () => {
       <small v-if="errors.n_steps" class="timing-error">{{ t('pluginTools.invalid') }}</small>
     </div>
     <div class="audio-tool-field">
-      <label for="param-speed_percent">{{ t('parameters.speed_percent') }}</label>
-      <n-input-number id="param-speed_percent" :value="params.speed_percent as number | null" :disabled="disabled || radius" :min="25" :max="400" :step="1" @update:value="params.speed_percent = $event" />
-      <small class="timing-hint">{{ t(radius ? 'plugin.radiusSpeedHint' : 'plugin.speedHint') }}</small>
-      <small v-if="errors.speed_percent" class="timing-error">{{ t('pluginTools.invalid') }}</small>
+      <label for="param-duration_percent">{{ t('parameters.duration_percent') }}</label>
+      <n-input-number id="param-duration_percent" :value="params.duration_percent as number | null" :disabled="disabled" :min="25" :max="400" :step="1" @update:value="params.duration_percent = $event" />
+      <small class="timing-hint">{{ t(radius ? 'plugin.radiusDurationHint' : 'plugin.durationHint') }}</small>
+      <small v-if="errors.duration_percent" class="timing-error">{{ t('pluginTools.invalid') }}</small>
     </div>
   </div>
 </template>

@@ -1,7 +1,7 @@
 """pymss plugin: time-stretch and pitch-shift.
 
-Registers pitch shifting with Radius or Rubber Band and time stretching with
-Rubber Band R3. Both accept numpy audio (1-D mono or 2-D
+Registers pitch and speed processing with Radius or Rubber Band R3.
+Both accept numpy audio (1-D mono or 2-D
 channels-first float32) and return audio at the same layout.
 """
 
@@ -24,18 +24,18 @@ def pitch_shift(audio, sample_rate, n_steps: float, bins_per_octave: int = 12, a
     raise ValueError("algorithm must be rubberband or radius")
 
 
-def process(audio, sample_rate, n_steps: float = 0, speed_percent: float = 100, algorithm: str = "rubberband"):
+def process(audio, sample_rate, n_steps: float = 0, duration_percent: float = 100, algorithm: str = "rubberband"):
     steps = _number(n_steps, "n_steps", -24, 24)
-    speed = _number(speed_percent, "speed_percent", 25, 400)
+    duration = _number(duration_percent, "duration_percent", 25, 400)
     if algorithm == "radius":
-        if speed != 100:
-            raise ValueError("Radius supports pitch shifting only; speed_percent must be 100")
-        return pitch_shift(audio, sample_rate, steps, algorithm="radius")
+        from .radius import process as radius_process
+
+        return radius_process(audio, sample_rate, steps, duration)
     if algorithm != "rubberband":
         raise ValueError("algorithm must be rubberband or radius")
     from .rubberband import process as rubberband_process
 
-    return rubberband_process(audio, sample_rate, pitch=2 ** (steps / 12), rate=speed / 100)
+    return rubberband_process(audio, sample_rate, pitch=2 ** (steps / 12), rate=100 / duration)
 
 
 def setup(plugin):
@@ -64,15 +64,15 @@ def setup(plugin):
     plugin.register_operation(
         id="pymss.timing.process",
         title="Pitch and Speed",
-        description="Choose a pitch algorithm; Radius requires speed 100%, Rubber Band also changes speed",
+        description="Change pitch and output duration with Radius or Rubber Band R3",
         inputs={"audio": {"type": "audio"}},
         params={"type": "object", "properties": {
             "algorithm": {"type": "string", "default": "rubberband", "enum": ["rubberband", "radius"]},
             "n_steps": {"type": "number", "default": 0.0, "minimum": -24.0, "maximum": 24.0},
-            "speed_percent": {"type": "number", "default": 100.0, "minimum": 25.0, "maximum": 400.0},
-        }, "required": ["algorithm", "n_steps", "speed_percent"], "additionalProperties": False},
+            "duration_percent": {"type": "number", "default": 100.0, "minimum": 25.0, "maximum": 400.0},
+        }, "required": ["algorithm", "n_steps", "duration_percent"], "additionalProperties": False},
         outputs={"audio": {"type": "audio"}},
-        run=_wrap(process, {"algorithm", "n_steps", "speed_percent"}),
+        run=_wrap(process, {"algorithm", "n_steps", "duration_percent"}),
     )
     plugin.register_operation(
         id="pymss.timing.pitch_shift",

@@ -205,13 +205,13 @@ class TimingNativeTests(unittest.TestCase):
                          (artifact.source_path, artifact.stem_name, artifact.channel_layout))
         self.assertEqual(list(self.scratch.iterdir()), [])
 
-    def test_unified_operation_changes_pitch_and_speed_with_real_progress(self):
+    def test_unified_operation_changes_pitch_and_duration_with_real_progress(self):
         updates = []
         context = OperationContext(progress=lambda fraction, message, event: updates.append(fraction))
         artifact = AudioArtifact(self.tone.reshape(1, -1), self.rate)
         result = self.runtime.run("pymss.timing.process", inputs={"audio": artifact},
-                                  params={"n_steps": 12, "speed_percent": 140, "algorithm": "rubberband"}, context=context)["audio"]
-        self.assertEqual(result.audio.shape, (1, round(len(self.tone) / 1.4)))
+                                  params={"n_steps": 12, "duration_percent": 200, "algorithm": "rubberband"}, context=context)["audio"]
+        self.assertEqual(result.audio.shape, (1, len(self.tone) * 2))
         self.assertAlmostEqual(self.frequency(result.audio[0]), 880, delta=3)
         self.assertTrue(any(0.05 < fraction < 1 for fraction in updates), updates)
         self.assertEqual(updates, sorted(updates))

@@ -734,7 +734,7 @@
       "pymss.timing.pitch_shift",
       "pymss.timing.time_stretch"
     ],
-    "description": "Choose Radius or Rubber Band for pitch shifting; adjust speed with Rubber Band.",
+    "description": "Adjust pitch and speed with Radius or Rubber Band.",
     "tags": [
       "pitch",
       "time",
@@ -744,7 +744,7 @@
     "locales": {
       "en": {
         "title": "Pitch and time",
-        "description": "Choose Radius or Rubber Band for pitch shifting; adjust speed with Rubber Band.",
+        "description": "Adjust pitch and speed with Radius or Rubber Band.",
         "operations": {
           "pymss.timing.process": "Pitch and Speed",
           "pymss.timing.pitch_shift": "Pitch Shift",
@@ -753,7 +753,7 @@
       },
       "zh-CN": {
         "title": "音高与速度",
-        "description": "变调可选 Radius 或 Rubber Band，变速使用 Rubber Band。",
+        "description": "选择 Radius 或 Rubber Band，同时调整音高与速度。",
         "tags": [
           "变调",
           "变速",

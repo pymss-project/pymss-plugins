@@ -1,4 +1,4 @@
-"""Verify algorithm switching, Radius speed locking and streamed task progress."""
+"""Verify duration controls with both algorithms and streamed task progress."""
 from __future__ import annotations
 
 import argparse
@@ -25,23 +25,26 @@ def main():
                 page.wait_for_load_state("networkidle")
                 expect(tool.locator("#operation")).to_have_count(0)
                 expect(tool.locator("#param-algorithm")).to_contain_text("Rubber Band")
-                speed = tool.locator("#param-speed_percent input")
-                expect(speed).to_be_enabled()
-                speed.fill("140")
-                speed.press("Tab")
+                duration = tool.locator("#param-duration_percent input")
+                expect(tool.locator('label[for="param-duration_percent"]')).to_have_text("时长（%）")
+                expect(duration).to_be_enabled()
+                duration.fill("140")
+                duration.press("Tab")
                 select(tool, "#param-algorithm", "Radius（音质优先，较慢）")
-                expect(speed).to_have_value("100")
-                expect(speed).to_be_disabled()
+                expect(duration).to_have_value("140")
+                expect(duration).to_be_enabled()
+                duration.fill("50")
+                duration.press("Tab")
                 fill_audio(tool)
                 tool.locator("#param-n_steps input").fill("3")
                 tool.locator("#param-n_steps input").press("Tab")
                 expect(tool.locator(".n-base-select-option:visible")).to_have_count(0)
-                page.screenshot(path=str(args.artifacts / f"radius-locked-{width}.png"), full_page=True)
+                page.screenshot(path=str(args.artifacts / f"radius-editable-{width}.png"), full_page=True)
                 tool.locator("#run").click()
                 page.wait_for_function("bridge.active!==null")
                 request = page.evaluate("bridge.active")
                 assert request["params"]["operation"] == "pymss.timing.process", request
-                assert request["params"]["params"] == {"algorithm": "radius", "n_steps": 3, "speed_percent": 100}, request
+                assert request["params"]["params"] == {"algorithm": "radius", "n_steps": 3, "duration_percent": 50}, request
                 page.evaluate("""() => document.querySelector('#plugin').contentWindow.postMessage({
                     jsonrpc:'2.0',method:'task.progress',params:{
                         id:bridge.active.id,operation:bridge.active.params.operation,fraction:0.42,message:'Processing audio (Radius)'
@@ -55,19 +58,19 @@ def main():
                 page.keyboard.press("Escape")
                 page.evaluate("bridge.active=null")
                 select(tool, "#param-algorithm", "Rubber Band（较快）")
-                expect(speed).to_be_enabled()
-                expect(speed).to_have_value("100")
-                speed.fill("140")
-                speed.press("Tab")
+                expect(duration).to_be_enabled()
+                expect(duration).to_have_value("50")
+                duration.fill("200")
+                duration.press("Tab")
                 page.screenshot(path=str(args.artifacts / f"rubberband-editable-{width}.png"), full_page=True)
                 tool.locator("#run").click()
                 page.wait_for_function("bridge.active!==null")
                 request = page.evaluate("bridge.active")
-                assert request["params"]["params"] == {"algorithm": "rubberband", "n_steps": 3, "speed_percent": 140}, request
+                assert request["params"]["params"] == {"algorithm": "rubberband", "n_steps": 3, "duration_percent": 200}, request
                 complete(page, {"audio": {"kind": "audio_file", "path": "/output/processed.wav"}})
                 expect(tool.locator("#run")).to_be_enabled()
                 page.close()
-            print(json.dumps({"radiusSpeed": "100%, disabled", "rubberbandSpeed": "140%, editable", "progress": "42%", "themes": 2}))
+            print(json.dumps({"radiusDuration": "50%, editable", "rubberbandDuration": "200%, editable", "progress": "42%", "themes": 2}))
         finally:
             browser.close()
 

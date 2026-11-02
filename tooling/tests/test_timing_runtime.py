@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -27,9 +28,7 @@ class TimingRuntimeTests(unittest.TestCase):
                 binary = root / "radius.exe"
                 binary.write_bytes(b"verified radius fixture")
                 rubber_release = (filename, hashlib.sha256(archive.read_bytes()).hexdigest(), members)
-                radius_release = ("radius.exe", hashlib.sha256(binary.read_bytes()).hexdigest())
                 with patch.dict(runtime.RELEASES, {"win32-x86_64": rubber_release}), \
-                     patch.dict(runtime.RADIUS_RELEASES, {"win32-x86_64": radius_release}), \
                      patch("urllib.request.urlopen") as network:
                     outputs = {}
                     previous = {}
@@ -56,22 +55,34 @@ class TimingRuntimeTests(unittest.TestCase):
             (target / "rubberband.exe").write_bytes(b"existing rubberband")
             binary = root / "radius.exe"
             binary.write_bytes(b"verified radius fixture")
-            release = ("radius.exe", hashlib.sha256(binary.read_bytes()).hexdigest())
-            with patch.dict(runtime.RADIUS_RELEASES, {"win32-x86_64": release}), patch("urllib.request.urlopen") as network:
+            with patch("urllib.request.urlopen") as network:
                 output = runtime.prepare_radius("win32-x86_64", root / "bin", binary=binary)
             network.assert_not_called()
             self.assertEqual((output / "radius.exe").read_bytes(), binary.read_bytes())
             self.assertIn("MIT License", (output / "LICENSE.radius").read_text(encoding="utf-8"))
             self.assertEqual((target / "rubberband.exe").read_bytes(), b"existing rubberband")
+            metadata = json.loads((output / "runtime.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["sha256"], hashlib.sha256((output / "radius.exe").read_bytes()).hexdigest())
 
-    def test_radius_checksum_failure_never_publishes_a_runtime(self):
+    def test_radius_requires_an_explicit_current_build_without_downloading(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            binary = root / "wrong.exe"
-            binary.write_bytes(b"wrong release")
-            with self.assertRaisesRegex(ValueError, "SHA256"):
-                runtime.prepare_radius("win32-x86_64", root / "bin", binary=binary)
-            self.assertEqual(list((root / "bin").iterdir()), [])
+            with patch("urllib.request.urlopen") as network, self.assertRaisesRegex(ValueError, "current Radius build"):
+                runtime.prepare_radius("win32-x86_64", root / "bin")
+            network.assert_not_called()
+            self.assertFalse((root / "bin").exists())
+
+    def test_radius_rejects_empty_or_oversized_local_binaries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binary = root / "invalid.exe"
+            for size in [0, 32 * 1024 * 1024 + 1]:
+                with self.subTest(size=size):
+                    with binary.open("wb") as stream:
+                        stream.truncate(size)
+                    with self.assertRaisesRegex(ValueError, "non-empty regular file"):
+                        runtime.prepare_radius("win32-x86_64", root / "bin", binary=binary)
+                    self.assertFalse((root / "bin").exists())
 
     def test_offline_preparation_keeps_runtime_dependency_and_license_files(self):
         filename, _, members = runtime.RELEASES["win32-x86_64"]

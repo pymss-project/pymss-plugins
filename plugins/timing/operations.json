@@ -44,7 +44,7 @@
       "title": "Pitch Shift"
     },
     {
-      "description": "Choose a pitch algorithm; Radius requires speed 100%, Rubber Band also changes speed",
+      "description": "Change pitch and output duration with Radius or Rubber Band R3",
       "id": "pymss.timing.process",
       "inputs": {
         "audio": {
@@ -67,23 +67,23 @@
             ],
             "type": "string"
           },
+          "duration_percent": {
+            "default": 100.0,
+            "maximum": 400.0,
+            "minimum": 25.0,
+            "type": "number"
+          },
           "n_steps": {
             "default": 0.0,
             "maximum": 24.0,
             "minimum": -24.0,
-            "type": "number"
-          },
-          "speed_percent": {
-            "default": 100.0,
-            "maximum": 400.0,
-            "minimum": 25.0,
             "type": "number"
           }
         },
         "required": [
           "algorithm",
           "n_steps",
-          "speed_percent"
+          "duration_percent"
         ],
         "type": "object"
       },
@@ -122,5 +122,5 @@
   "pluginApiVersion": 2,
   "pluginId": "pymss.timing",
   "pluginVersion": "0.3.0",
-  "sourceDigest": "7811c59ed171b77aac0dc50116e2af3f156a8268c94fa2f8ae4d46f8a3367fea"
+  "sourceDigest": "13d8f59926cd5e15455eff902dcfabe4d34dcc11a87de3d94a55a8104c8b756f"
 }
