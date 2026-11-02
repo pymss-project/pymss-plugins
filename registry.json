@@ -728,7 +728,7 @@
     "subpath": "plugins/timing",
     "ref": "main",
     "version": "0.3.0",
-    "requires_pymss": ">=2.2",
+    "requires_pymss": ">=2.3.0",
     "operations": [
       "pymss.timing.process",
       "pymss.timing.pitch_shift",

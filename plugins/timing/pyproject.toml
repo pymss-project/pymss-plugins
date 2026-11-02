@@ -8,7 +8,7 @@ dependencies = ["numpy", "soundfile"]
 [tool.pymss.plugin]
 id = "pymss.timing"
 api_version = 2
-requires_pymss = ">=2.2"
+requires_pymss = ">=2.3.0"
 
 [[tool.pymss.plugin.operations]]
 id = "pymss.timing.process"

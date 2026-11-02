@@ -22,12 +22,10 @@ a Rubber Band executable **version 3.0 or newer**. It is resolved from
 then `rubberband` / `rubberband-r3` on PATH. An explicitly configured invalid
 executable fails rather than silently selecting another installation.
 
-The kernel must provide `pymss.plugins.kit.current_operation_context` and
-`run_native_process`. The released pymss 2.2.0 does not include these APIs;
-use the companion kernel update before loading this plugin. Plugin setup checks
-these APIs before registering capabilities or operations, including when only
-neutral transforms are requested. Development snapshots are checked by API
-availability rather than by an intermediate version number.
+Requires pymss 2.3.0 or newer, which provides
+`pymss.plugins.kit.current_operation_context` and `run_native_process`. Plugin
+setup also verifies these APIs before registering capabilities or operations,
+including when only neutral transforms are requested.
 
 For a source checkout, build the current radius-rs source and explicitly prepare
 the native runtimes:

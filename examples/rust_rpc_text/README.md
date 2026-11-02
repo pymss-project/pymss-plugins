@@ -1,10 +1,9 @@
 # Rust RPC text plugin
 
 This development template converts UTF-8 text line endings while exercising
-task-scoped reverse RPC. It requires the unpublished pymss RPC process adapter
-and a Studio build that supports generic file inputs. PyPI pymss 2.2.0 does not
-include this adapter. Update the minimum released version before distribution;
-the current setup performs an explicit feature check.
+task-scoped reverse RPC. It requires pymss 2.3.0 or newer and a Studio build
+that supports generic file inputs. `setup()` also verifies that the RPC process
+registration helper is available.
 
 The plugin remains API v2. Its process protocol and declaration format are both
 independently versioned as 1. It is not in the official catalog or default

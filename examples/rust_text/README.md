@@ -5,11 +5,9 @@ Rust program. It exercises the experimental command adapter through pymss's
 existing v2 plugin API. It is not listed in the official catalog or bundled
 with Studio.
 
-The published pymss 2.2.0 does **not** include `register_commands` or
-`FileArtifact`. Use the corresponding local pymss changes and a Studio build
-that advertises `files.pickFile`. The package's `requires_pymss >=2.2` expresses
-the underlying v2 contract; `setup()` also checks the experimental helper.
-The minimum released version must be updated before distributing this plugin.
+Requires pymss 2.3.0 or newer for `register_commands` and `FileArtifact`,
+and a Studio build that advertises `files.pickFile`. `setup()` also checks
+that the command registration helper is available.
 
 ## Package responsibilities
 

@@ -7,8 +7,8 @@ task protocol as the Rust RPC package. It requests `host.taskInfo` and
 shutdown. The peer imports no pymss or host dependencies.
 
 This is an experimental source template, not a catalog or preinstalled plugin.
-The published pymss 2.2.0 package does not contain isolated Python profiles.
-Set a minimum version that actually provides the feature before release.
+Requires pymss 2.3.0 or newer for the RPC process adapter and isolated Python
+profiles.
 
 Studio prepares the environment as part of its ordinary installation
 transaction. For CLI use, explicitly prepare first:
