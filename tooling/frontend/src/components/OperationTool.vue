@@ -150,7 +150,8 @@ onBeforeUnmount(() => { disposed = true; generation += 1; stopElapsed() })
         <n-button secondary :disabled="running || picking" @click="pickAudio(name)"><template #icon><n-icon :component="FolderOpenOutline" /></template>{{ t('common.browse') }}</n-button>
       </div>
     </div>
-    <div class="audio-tool-grid">
+    <slot name="parameters" :params="params" :errors="errors" :disabled="running || loading">
+      <div class="audio-tool-grid">
       <div v-for="[name, field] in fields" :key="name" class="audio-tool-field"><label :for="`param-${name}`">{{ parameterLabel(name, field) }}</label>
         <n-select v-if="Array.isArray(field.enum)" :id="`param-${name}`" :value="enumValue(name, field.enum)" :disabled="running" :options="field.enum.map((value, index) => ({ label: String(value), value: index }))" clearable @update:value="chooseEnum(name, field.enum as unknown[], $event)" />
         <n-checkbox v-else-if="field.type === 'boolean'" :id="`param-${name}`" v-model:checked="params[name] as boolean" :disabled="running">{{ parameterLabel(name, field) }}</n-checkbox>
@@ -158,7 +159,8 @@ onBeforeUnmount(() => { disposed = true; generation += 1; stopElapsed() })
         <n-input v-else :id="`param-${name}`" v-model:value="params[name] as string" :disabled="running" />
         <small v-if="errors[name]" class="operation-error">{{ t('pluginTools.invalid') }}</small>
       </div>
-    </div>
+      </div>
+    </slot>
     <p v-if="loading" role="status" class="operation-detail">{{ t('pluginTools.loading') }}</p>
     <div class="audio-tool-actions"><n-button id="run" type="primary" :disabled="!canRun" :loading="running" @click="run">{{ t('pluginTools.run') }}</n-button></div>
     <n-alert v-if="error" id="error" type="error" :bordered="false">{{ error }}</n-alert>

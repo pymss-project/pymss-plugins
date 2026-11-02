@@ -7,7 +7,7 @@
     "audio": "输入音频",
     "cancelled": "操作已取消。",
     "completed": "已完成",
-    "description": "配置输入和操作参数。",
+    "description": "选择 Radius 或 Rubber Band，同时调整音高与速度。",
     "failed": "处理失败",
     "invalid": "请输入有效值。",
     "invalidSpec": "操作元数据不受支持。",
@@ -31,12 +31,18 @@
   },
   "plugin": {
     "title": "音高与速度",
+    "algorithms": {"rubberband": "Rubber Band（较快）", "radius": "Radius（音质优先，较慢）"},
+    "algorithmHint": "Radius 侧重音质，处理较慢；Rubber Band 处理较快。两种算法均支持变调与变速，效果因素材而异，建议试听后选择。",
+    "radiusDurationHint": "50% 为一半时长（加速），200% 为两倍时长（慢放）；Radius 输入采样率须为 44.1 或 48 kHz。",
+    "durationHint": "100% 保持原时长，50% 为一半时长（加速），200% 为两倍时长（慢放）。",
     "operations": {
       "pitch_shift": "变调",
       "time_stretch": "变速"
     }
   },
   "parameters": {
+    "algorithm": "处理算法",
+    "duration_percent": "时长（%）",
     "n_steps": "变调（半音）",
     "bins_per_octave": "每八度音阶数",
     "rate": "速度倍率"

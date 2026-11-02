@@ -1,14 +1,18 @@
 [project]
 name = "pymss-plugin-timing"
-version = "0.2.0"
-description = "pymss plugin: pitch-shift and time-stretch (librosa)"
+version = "0.3.0"
+description = "pymss plugin: pitch and speed processing with Radius or Rubber Band R3"
 requires-python = ">=3.10"
-dependencies = ["librosa"]
+dependencies = ["numpy", "soundfile"]
 
 [tool.pymss.plugin]
 id = "pymss.timing"
 api_version = 2
 requires_pymss = ">=2.2"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.timing.process"
+title = "Pitch and Speed"
 
 [[tool.pymss.plugin.operations]]
 id = "pymss.timing.pitch_shift"
@@ -37,18 +41,20 @@ category = "edit"
 
 [tool.pymss.studio.locales."en"]
 title = "Pitch and time"
-description = "Change pitch or stretch time while preserving the other."
+description = "Adjust pitch and speed with Radius or Rubber Band."
 
 [tool.pymss.studio.locales."en".operations]
+"pymss.timing.process" = "Pitch and Speed"
 "pymss.timing.pitch_shift" = "Pitch Shift"
 "pymss.timing.time_stretch" = "Time Stretch"
 
 [tool.pymss.studio.locales."zh-CN"]
 title = "音高与速度"
-description = "独立调整音高与播放速度，保持另一项不变。"
+description = "选择 Radius 或 Rubber Band，同时调整音高与速度。"
 tags = ["变调", "变速", "时间拉伸"]
 
 [tool.pymss.studio.locales."zh-CN".operations]
+"pymss.timing.process" = "音高与速度"
 "pymss.timing.pitch_shift" = "音高调整"
 "pymss.timing.time_stretch" = "时间拉伸"
 
@@ -73,7 +79,8 @@ outputs = [
 ]
 widgets = [
   { name = "n_steps", type = "number", default = 0.0, min = -24.0, max = 24.0, step = 0.5 },
-  { name = "bins_per_octave", type = "number", default = 12.0, min = 1.0, max = 36.0, step = 1.0 }
+  { name = "bins_per_octave", type = "number", default = 12.0, min = 1.0, max = 36.0, step = 1.0 },
+  { name = "algorithm", type = "combo", default = "rubberband", options = ["rubberband", "radius"] }
 ]
 
 [[tool.pymss.plugin.contributions.nodes]]

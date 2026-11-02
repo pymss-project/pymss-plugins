@@ -22,7 +22,9 @@ Commands in this reference run from the repository root unless stated otherwise.
 | `spectral` | Filters and EQ | High-pass, low-pass and peak EQ |
 | `timing` | Pitch and time | Pitch shift and time stretch |
 
-Studio ships without preinstalled tool plugins by default. Users browse the official catalog and install the tools they need. Studio declares the default repository and an optional offline preinstallation list in `python/plugin-manifest.json`; an empty list requires no plugin repository access during its build. Existing installed and disabled plugins are preserved. This repository owns plugin source, interfaces, built pages and independent versions.
+Studio declares its repository and offline preinstallation list in `python/plugin-manifest.json`; that configuration is authoritative. An empty list requires no plugin repository access during its build. Existing installed and disabled plugins are preserved. This repository owns plugin source, optional interfaces, built pages and independent versions.
+
+Plugins target the pymss kernel. Studio plugin management is a graphical adapter for the same management backend, and Studio pages are optional. A plugin providing only a Provider, codec or CLI contribution does not need Operations, views, a Studio category or an SDK declaration. Catalog generation accepts such packages; page builds run only for declared views. Operation snapshots remain required for release packages that declare Operations.
 
 Plugins own their interfaces, validation, progress, cancellation and structured results. Existing Python capabilities and Operation IDs remain available. Rich file tools use additional `*.tool` Operations. `tempo_key` contributes a view backed by the public native analysis service rather than a Python processing placeholder.
 

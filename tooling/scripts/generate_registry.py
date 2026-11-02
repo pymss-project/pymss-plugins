@@ -31,23 +31,28 @@ def render_registry(root: Path = ROOT, *, ref: str | None = None, release: bool 
         data = tomllib.loads(path.read_text(encoding="utf-8"))
         project = data["project"]
         plugin = data["tool"]["pymss"]["plugin"]
-        studio = data["tool"]["pymss"]["studio"]
+        # Studio pages are optional; plugins without them are listed from [project].
+        has_studio = "studio" in data["tool"]["pymss"]
+        studio = data["tool"]["pymss"].get("studio", {})
+        if not isinstance(studio, dict):
+            raise ValueError(f"Invalid Studio metadata: {path.parent.name}")
         if plugin["id"] in identifiers:
             raise ValueError(f"Duplicate plugin ID: {plugin['id']}")
         identifiers.add(plugin["id"])
-        if studio.get("category") not in {"convert", "analyze", "recognize", "edit"}:
+        if "category" in studio and studio["category"] not in {"convert", "analyze", "recognize", "edit"}:
             raise ValueError(f"Invalid plugin category: {path.parent.name}")
         if not isinstance(project.get("version"), str) or not project["version"].strip():
             raise ValueError(f"Missing plugin version: {path.parent.name}")
         locales = studio.get("locales", {})
         if not isinstance(locales, dict) or not all(isinstance(value, dict) for value in locales.values()):
             raise ValueError(f"Invalid plugin locales: {path.parent.name}")
-        tags = studio.get("tags", [])
+        tags = studio.get("tags", []) if has_studio else project.get("keywords", [])
         if not isinstance(tags, list) or not all(isinstance(tag, str) for tag in tags):
             raise ValueError(f"Invalid plugin tags: {path.parent.name}")
         if plugin.get("api_version") != 2:
             raise ValueError(f"Plugin manifest must use api_version 2: {path.parent.name}")
-        if release:
+        # Pure providers have no operation descriptions to snapshot.
+        if release and (plugin.get("operations") or (path.parent / "operations.json").exists()):
             validate_snapshot(path.parent, data)
         catalog[plugin["id"]] = {
             "id": plugin["id"], "api_version": plugin["api_version"],
@@ -56,7 +61,7 @@ def render_registry(root: Path = ROOT, *, ref: str | None = None, release: bool 
             "requires_pymss": plugin.get("requires_pymss"),
             "operations": [operation["id"] for operation in plugin.get("operations", [])],
             "description": locales.get("en", {}).get("description") or project.get("description", ""),
-            "tags": tags, "category": studio["category"], "locales": locales,
+            "tags": tags, "category": studio.get("category"), "locales": locales,
             "requirements": studio_requirements(studio),
         }
     return catalog

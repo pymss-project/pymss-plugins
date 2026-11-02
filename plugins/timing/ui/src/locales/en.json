@@ -7,7 +7,7 @@
     "audio": "Input audio",
     "cancelled": "Operation cancelled.",
     "completed": "Completed",
-    "description": "Configure inputs and operation parameters.",
+    "description": "Adjust pitch and speed with Radius or Rubber Band.",
     "failed": "Operation failed",
     "invalid": "Enter a valid value.",
     "invalidSpec": "Operation metadata is unsupported.",
@@ -31,12 +31,18 @@
   },
   "plugin": {
     "title": "Pitch and Time",
+    "algorithms": {"rubberband": "Rubber Band (faster)", "radius": "Radius (quality first, slower)"},
+    "algorithmHint": "Radius prioritizes quality and takes longer. Rubber Band is faster. Both support pitch and speed changes. Results depend on the material; compare by listening.",
+    "radiusDurationHint": "50% halves the duration (faster); 200% doubles it (slower). Radius input must be 44.1 or 48 kHz.",
+    "durationHint": "100% keeps the duration; 50% halves it (faster), and 200% doubles it (slower).",
     "operations": {
       "pitch_shift": "Pitch shift",
       "time_stretch": "Time stretch"
     }
   },
   "parameters": {
+    "algorithm": "Processing algorithm",
+    "duration_percent": "Duration (%)",
     "n_steps": "Pitch shift (semitones)",
     "bins_per_octave": "Steps per octave",
     "rate": "Speed ratio"
