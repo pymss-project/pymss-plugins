@@ -63,6 +63,9 @@ class ToolPluginTests(unittest.TestCase):
             with self.subTest(plugin=name):
                 manifest = read_manifest(ROOT / "plugins" / name)
                 expected = {spec["id"] for spec in specs if spec["id"].startswith(manifest.plugin_id + ".")}
+                if name == "timing":
+                    self.assertTrue({"pymss.timing.pitch_shift", "pymss.timing.time_stretch"} <= expected)
+                    expected = {"pymss.timing.process"}
                 self.assertEqual({entry["id"] for entry in tool["operations"]}, expected)
                 self.assertTrue(expected)
 
@@ -129,6 +132,12 @@ class ToolPluginTests(unittest.TestCase):
         self.assertAlmostEqual(measured["report"]["lufs"], -18.0, places=3)
 
     def test_timing_stretch_preserves_channels_and_changes_duration(self):
+        from plugins.timing.backend.rubberband import executable
+
+        try:
+            executable()
+        except RuntimeError as error:
+            self.skipTest(str(error))
         result = self.runtime.run("pymss.timing.time_stretch", inputs={"audio": self.audio()}, params={"rate": 2.0})
         wave, sr = audio_to_numpy(result["audio"])
         self.assertEqual(wave.shape, (2, 22050))

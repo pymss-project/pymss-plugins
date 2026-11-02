@@ -72,7 +72,8 @@ class WorkflowNodeTests(unittest.TestCase):
             ("DynamicsCompressor", "compressor", [], {"threshold_db": 0.0, "ratio": 4.0, "attack_ms": 1.0, "release_ms": 100.0}),
             ("DynamicsLimiter", "limiter", [-6.0, 50.0], {"threshold_db": -6.0, "release_ms": 50.0}),
             ("DynamicsDeEsser", "deesser", [], {"threshold_db": 0.0, "ratio": 3.0, "crossover_hz": 6000.0}),
-            ("TimingPitchShift", "pitch_shift", [], {"n_steps": 0.0, "bins_per_octave": 12}),
+            ("TimingPitchShift", "pitch_shift", [], {"n_steps": 0.0, "bins_per_octave": 12, "algorithm": "rubberband"}),
+            ("TimingPitchShift", "pitch_shift", [3, 24, "radius"], {"n_steps": 3, "bins_per_octave": 24, "algorithm": "radius"}),
             ("TimingTimeStretch", "time_stretch", [0.5], {"rate": 0.5}),
         ]
         for name, capability, widgets, expected in cases:

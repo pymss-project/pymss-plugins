@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "operations": [
     {
-      "description": "Shift pitch by fractional semitones (duration preserved)",
+      "description": "Shift pitch with Rubber Band R3 or Radius (duration preserved)",
       "id": "pymss.timing.pitch_shift",
       "inputs": {
         "audio": {
@@ -17,6 +17,14 @@
       "params": {
         "additionalProperties": false,
         "properties": {
+          "algorithm": {
+            "default": "rubberband",
+            "enum": [
+              "rubberband",
+              "radius"
+            ],
+            "type": "string"
+          },
           "bins_per_octave": {
             "default": 12,
             "maximum": 36,
@@ -36,7 +44,54 @@
       "title": "Pitch Shift"
     },
     {
-      "description": "Time-stretch by rate without pitch change",
+      "description": "Choose a pitch algorithm; Radius requires speed 100%, Rubber Band also changes speed",
+      "id": "pymss.timing.process",
+      "inputs": {
+        "audio": {
+          "type": "audio"
+        }
+      },
+      "outputs": {
+        "audio": {
+          "type": "audio"
+        }
+      },
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "algorithm": {
+            "default": "rubberband",
+            "enum": [
+              "rubberband",
+              "radius"
+            ],
+            "type": "string"
+          },
+          "n_steps": {
+            "default": 0.0,
+            "maximum": 24.0,
+            "minimum": -24.0,
+            "type": "number"
+          },
+          "speed_percent": {
+            "default": 100.0,
+            "maximum": 400.0,
+            "minimum": 25.0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "algorithm",
+          "n_steps",
+          "speed_percent"
+        ],
+        "type": "object"
+      },
+      "schemaVersion": 1,
+      "title": "Pitch and Speed"
+    },
+    {
+      "description": "Time-stretch with Rubber Band R3 without pitch change",
       "id": "pymss.timing.time_stretch",
       "inputs": {
         "audio": {
@@ -66,6 +121,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.timing",
-  "pluginVersion": "0.2.0",
-  "sourceDigest": "92a7cead8237d1e9a0db56c80f073bff35f25e75c84fe2b7a5f54df020ab52d0"
+  "pluginVersion": "0.3.0",
+  "sourceDigest": "7811c59ed171b77aac0dc50116e2af3f156a8268c94fa2f8ae4d46f8a3367fea"
 }

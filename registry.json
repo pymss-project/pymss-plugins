@@ -727,13 +727,14 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/timing",
     "ref": "main",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "requires_pymss": ">=2.2",
     "operations": [
+      "pymss.timing.process",
       "pymss.timing.pitch_shift",
       "pymss.timing.time_stretch"
     ],
-    "description": "Change pitch or stretch time while preserving the other.",
+    "description": "Choose Radius or Rubber Band for pitch shifting; adjust speed with Rubber Band.",
     "tags": [
       "pitch",
       "time",
@@ -743,21 +744,23 @@
     "locales": {
       "en": {
         "title": "Pitch and time",
-        "description": "Change pitch or stretch time while preserving the other.",
+        "description": "Choose Radius or Rubber Band for pitch shifting; adjust speed with Rubber Band.",
         "operations": {
+          "pymss.timing.process": "Pitch and Speed",
           "pymss.timing.pitch_shift": "Pitch Shift",
           "pymss.timing.time_stretch": "Time Stretch"
         }
       },
       "zh-CN": {
         "title": "音高与速度",
-        "description": "独立调整音高与播放速度，保持另一项不变。",
+        "description": "变调可选 Radius 或 Rubber Band，变速使用 Rubber Band。",
         "tags": [
           "变调",
           "变速",
           "时间拉伸"
         ],
         "operations": {
+          "pymss.timing.process": "音高与速度",
           "pymss.timing.pitch_shift": "音高调整",
           "pymss.timing.time_stretch": "时间拉伸"
         }
