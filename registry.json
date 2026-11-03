@@ -727,10 +727,11 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/timing",
     "ref": "main",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "requires_pymss": ">=2.3.0",
     "operations": [
       "pymss.timing.process",
+      "pymss.timing.process_file",
       "pymss.timing.pitch_shift",
       "pymss.timing.time_stretch"
     ],
@@ -747,6 +748,7 @@
         "description": "Adjust pitch and speed with Radius or Rubber Band.",
         "operations": {
           "pymss.timing.process": "Pitch and Speed",
+          "pymss.timing.process_file": "Pitch and Speed",
           "pymss.timing.pitch_shift": "Pitch Shift",
           "pymss.timing.time_stretch": "Time Stretch"
         }
@@ -761,6 +763,7 @@
         ],
         "operations": {
           "pymss.timing.process": "音高与速度",
+          "pymss.timing.process_file": "音高与速度",
           "pymss.timing.pitch_shift": "音高调整",
           "pymss.timing.time_stretch": "时间拉伸"
         }
@@ -771,6 +774,7 @@
       "requiredCapabilities": [
         "app.info",
         "files.pickAudio",
+        "files.pickDirectory",
         "files.reveal",
         "operations.cancel",
         "operations.describe",

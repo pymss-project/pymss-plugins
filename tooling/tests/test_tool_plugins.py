@@ -65,7 +65,7 @@ class ToolPluginTests(unittest.TestCase):
                 expected = {spec["id"] for spec in specs if spec["id"].startswith(manifest.plugin_id + ".")}
                 if name == "timing":
                     self.assertTrue({"pymss.timing.pitch_shift", "pymss.timing.time_stretch"} <= expected)
-                    expected = {"pymss.timing.process"}
+                    expected = {"pymss.timing.process_file"}
                 self.assertEqual({entry["id"] for entry in tool["operations"]}, expected)
                 self.assertTrue(expected)
 

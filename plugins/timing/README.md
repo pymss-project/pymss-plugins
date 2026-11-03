@@ -27,6 +27,25 @@ Requires pymss 2.3.0 or newer, which provides
 setup also verifies these APIs before registering capabilities or operations,
 including when only neutral transforms are requested.
 
+## Studio output directory
+
+The view starts with Studio's default output directory. Select another directory
+with the folder picker or enter a path directly; the choice is remembered when
+the view is reopened. Clear the field to use Studio's default directory again.
+
+The file operation processes and saves the audio inside the plugin. It preserves
+the input stem, adds `_processed.wav`, and publishes a unique filename when an
+earlier result already exists. Studio displays the returned file reference.
+The same operation is available from the CLI:
+
+```sh
+pymss ops run pymss.timing.process_file --input audio=/path/to/song.wav --param algorithm=radius --param n_steps=3 --param duration_percent=100 --output-dir /path/to/outputs
+```
+
+Without `--output-dir`, the CLI saves next to the input file. The existing
+`process`, `pitch_shift`, and `time_stretch` operations return in-memory audio
+for composition in workflows.
+
 ## Packaged native programs
 
 The repository includes Radius 0.2.0 and Rubber Band 4.0.0 CLI programs for

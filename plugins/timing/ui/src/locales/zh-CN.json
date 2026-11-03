@@ -14,6 +14,9 @@
     "loading": "正在加载操作元数据…",
     "operation": "处理操作",
     "operationMismatch": "操作返回的结果不匹配。",
+    "outputDirectory": "输出目录",
+    "chooseOutputDirectory": "选择输出目录",
+    "outputDirectoryHint": "留空时使用 Studio 的默认输出目录。",
     "ready": "就绪",
     "retry": "重试",
     "run": "运行操作",
@@ -39,6 +42,7 @@
       "time_stretch": "变速"
     }
   },
+  "outputs": {"audio": "输出音频"},
   "parameters": {
     "algorithm": "处理算法",
     "duration_percent": "时长（%）",

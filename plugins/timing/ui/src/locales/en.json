@@ -14,6 +14,9 @@
     "loading": "Loading operation metadata…",
     "operation": "Operation",
     "operationMismatch": "The operation returned a mismatched result.",
+    "outputDirectory": "Output directory",
+    "chooseOutputDirectory": "Choose output directory",
+    "outputDirectoryHint": "Leave empty to use Studio's default output directory.",
     "ready": "Ready",
     "retry": "Retry",
     "run": "Run operation",
@@ -39,6 +42,7 @@
       "time_stretch": "Time stretch"
     }
   },
+  "outputs": {"audio": "Output audio"},
   "parameters": {
     "algorithm": "Processing algorithm",
     "duration_percent": "Duration (%)",

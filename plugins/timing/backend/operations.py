@@ -7,6 +7,10 @@ channels-first float32) and return audio at the same layout.
 
 from __future__ import annotations
 
+from dataclasses import replace
+from pathlib import Path
+import shutil
+
 import numpy as np
 
 from pymss.plugins.kit import operation_context
@@ -36,6 +40,45 @@ def process(audio, sample_rate, n_steps: float = 0, duration_percent: float = 10
     from .rubberband import process as rubberband_process
 
     return rubberband_process(audio, sample_rate, pitch=2 ** (steps / 12), rate=100 / duration)
+
+
+def _process_parameters():
+    return {"type": "object", "properties": {
+        "algorithm": {"type": "string", "default": "rubberband", "enum": ["rubberband", "radius"]},
+        "n_steps": {"type": "number", "default": 0.0, "minimum": -24.0, "maximum": 24.0},
+        "duration_percent": {"type": "number", "default": 100.0, "minimum": 25.0, "maximum": 400.0},
+    }, "required": ["algorithm", "n_steps", "duration_percent"], "additionalProperties": False}
+
+
+def _process_file(ctx, inputs, params):
+    from pymss.audio_io import load_audio
+    from pymss.graph.core import numpy_to_audio
+    from pymss.operations.files import FileArtifact, input_file
+    from pymss.plugins.kit import materialize_audio, render_output
+
+    ctx.check_cancelled()
+    source = input_file(inputs["audio"])
+    waveform, sample_rate, layout = load_audio(str(source), sr=None, mono=False, return_layout=True)
+    native_context = replace(ctx, progress=lambda fraction, message, event:
+        ctx.report_progress(fraction * 0.95, message, event=event))
+    with operation_context(native_context):
+        output = process(waveform, sample_rate, **params)
+    ctx.check_cancelled()
+
+    output_dir = Path(ctx.workdir).expanduser().resolve() if ctx.workdir else source.parent
+    output_dir.mkdir(parents=True, exist_ok=True)
+    stem = source.stem.encode("utf-8")[:180].decode("utf-8", errors="ignore").rstrip(" .") or "audio"
+    audio = numpy_to_audio(np.asarray(output, dtype=np.float32), sample_rate,
+                           source_path=str(source), channel_layout=layout)
+    ctx.report_progress(0.97, "Saving processed audio")
+    with materialize_audio(audio) as temporary:
+        def render(target):
+            shutil.copyfile(temporary, target)
+            ctx.check_cancelled()
+
+        path = render_output(output_dir / f"{stem}_processed.wav", render)
+    ctx.report_progress(1.0, "Audio saved")
+    return {"audio": FileArtifact(str(path), "audio/wav")}
 
 
 def setup(plugin):
@@ -70,13 +113,18 @@ def setup(plugin):
         title="Pitch and Speed",
         description="Change pitch and output duration with Radius or Rubber Band R3",
         inputs={"audio": {"type": "audio"}},
-        params={"type": "object", "properties": {
-            "algorithm": {"type": "string", "default": "rubberband", "enum": ["rubberband", "radius"]},
-            "n_steps": {"type": "number", "default": 0.0, "minimum": -24.0, "maximum": 24.0},
-            "duration_percent": {"type": "number", "default": 100.0, "minimum": 25.0, "maximum": 400.0},
-        }, "required": ["algorithm", "n_steps", "duration_percent"], "additionalProperties": False},
+        params=_process_parameters(),
         outputs={"audio": {"type": "audio"}},
         run=_wrap(process, {"algorithm", "n_steps", "duration_percent"}),
+    )
+    plugin.register_operation(
+        id="pymss.timing.process_file",
+        title="Process Audio File",
+        description="Process an audio file and save a named WAV in the selected output directory",
+        inputs={"audio": {"type": "file"}},
+        params=_process_parameters(),
+        outputs={"audio": {"type": "file", "media_type": "audio/wav"}},
+        run=_process_file,
     )
     plugin.register_operation(
         id="pymss.timing.pitch_shift",

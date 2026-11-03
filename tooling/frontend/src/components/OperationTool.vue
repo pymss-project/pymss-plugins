@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { OptionsOutline, FolderOpenOutline } from '@vicons/ionicons5'
 import { call, toolRef } from '@/sdk'
+import { useSettingsStore } from '@/stores/settings'
 import AudioToolHeader from '@/features/audio-tools/shared/AudioToolHeader.vue'
 import ToolPanelShell from './ToolPanelShell.vue'
 import ToolActivityDialog from './ToolActivityDialog.vue'
@@ -11,9 +12,11 @@ import { operationDescriptions } from './operationDescriptions'
 
 type Port = { type?: string }
 type Description = { id: string; inputs: Record<string, Port>; params: OperationSchema; outputs: Record<string, Port>; specDigest?: string }
-type Output = { kind?: string; path?: string; value?: unknown }
-const props = defineProps<{ config: { titleKey: string; descriptionKey?: string; operations: Array<{ id: string; titleKey: string; inputs?: string[] }>; layout?: 'split' | 'stacked' } }>()
+type Output = { kind?: string; path?: string; value?: unknown; mediaType?: string }
+const props = defineProps<{ config: { titleKey: string; descriptionKey?: string; operations: Array<{ id: string; titleKey: string; inputs?: string[] }>; layout?: 'split' | 'stacked'; outputDirectory?: boolean } }>()
 const { t, te } = useI18n()
+const settings = useSettingsStore()
+const outputDir = toolRef('outputDir', settings.outputDir)
 const savedOperation = toolRef('operation', props.config.operations[0]?.id || '')
 const operationId = ref(props.config.operations.some(item => item.id === savedOperation.value) ? savedOperation.value : props.config.operations[0]?.id || '')
 const paths = toolRef<Record<string, string>>('audioPaths', {})
@@ -50,7 +53,7 @@ const forcedDescriptions = new Set<string>()
 const descriptions = operationDescriptions(async (operation: string) => {
   const value = await call<Description>('operations.describe', { operation, ...(forcedDescriptions.has(operation) ? { refresh: true } : {}) }).promise
   if (value?.specDigest !== undefined && (typeof value.specDigest !== 'string' || !/^[0-9a-f]{64}$/.test(value.specDigest))) throw new Error(t('pluginTools.invalidSpec'))
-  if (!value || value.id !== operation || !record(value.inputs) || !record(value.outputs) || !record(value.params) || !record(value.params.properties) || !Object.values(value.inputs).every(port => record(port) && port.type === 'audio') || !supportsOperationSchema(value.params)) throw new Error(t('pluginTools.invalidSpec'))
+  if (!value || value.id !== operation || !record(value.inputs) || !record(value.outputs) || !record(value.params) || !record(value.params.properties) || !Object.values(value.inputs).every(port => record(port) && (port.type === 'audio' || port.type === 'file')) || !supportsOperationSchema(value.params)) throw new Error(t('pluginTools.invalidSpec'))
   forcedDescriptions.delete(operation)
   return value
 })
@@ -79,11 +82,21 @@ async function pickAudio(name: string) {
   } catch (failure) { if (!disposed && current === generation) error.value = failure instanceof Error ? failure.message : String(failure) }
   finally { picking.value = false }
 }
+async function pickOutputDirectory() {
+  const current = generation
+  picking.value = true
+  try {
+    const selected = await call<{ path?: string } | null>('files.pickDirectory').promise
+    if (!disposed && current === generation && selected?.path) outputDir.value = selected.path
+  } catch (failure) { if (!disposed && current === generation) error.value = failure instanceof Error ? failure.message : String(failure) }
+  finally { picking.value = false }
+}
 const enumValue = (name: string, values: unknown[]) => { const index = values.findIndex(value => Object.is(value, params.value[name])); return index < 0 ? null : index }
 function chooseEnum(name: string, values: unknown[], index: number | null) { if (index === null) delete params.value[name]; else params.value[name] = values[index] }
 async function run() {
-  if (!canRun.value || !spec.value) return
-  const snapshot = { operation: spec.value.id, inputs: Object.fromEntries(audioInputs.value.map(name => [name, { kind: 'file', path: paths.value[name].trim() }])), params: Object.fromEntries(Object.entries(params.value).filter(([, value]) => value !== undefined && value !== null && value !== '')), ...(spec.value.specDigest ? { expectedSpecDigest: spec.value.specDigest } : {}) }
+  const definition = spec.value
+  if (!canRun.value || !definition) return
+  const snapshot = { operation: definition.id, inputs: Object.fromEntries(audioInputs.value.map(name => [name, definition.inputs[name]?.type === 'file' ? paths.value[name].trim() : { kind: 'file', path: paths.value[name].trim() }])), params: Object.fromEntries(Object.entries(params.value).filter(([, value]) => value !== undefined && value !== null && value !== '')), ...(definition.specDigest ? { expectedSpecDigest: definition.specDigest } : {}), ...(props.config.outputDirectory && outputDir.value.trim() ? { outputDir: outputDir.value.trim() } : {}) }
   error.value = ''; results.value = null; cancelled.value = false; progress.value = null; running.value = true
   progressMessage.value = ''; elapsed.value = 0
   activity.value = []; recordActivity(t('pluginTools.running'))
@@ -124,6 +137,11 @@ async function cancel() {
   catch (failure) { error.value = failure instanceof Error ? failure.message : String(failure); cancelling.value = false }
 }
 async function reveal(path: string) { try { await call('files.reveal', { path }).promise } catch (failure) { error.value = failure instanceof Error ? failure.message : String(failure) } }
+function filePath(name: string, output: Output): string {
+  if (output.kind === 'audio_file' || output.kind === 'file') return typeof output.path === 'string' ? output.path : ''
+  // Earlier SDK 1 hosts stringify file artifacts; their declared file ports still identify paths.
+  return spec.value?.outputs[name]?.type === 'file' && output.kind === 'opaque' && typeof output.value === 'string' ? output.value : ''
+}
 const outputText = (value: Output) => typeof value.value === 'string' ? value.value : JSON.stringify(value.value ?? value, null, 2)
 onBeforeUnmount(() => { disposed = true; generation += 1; stopElapsed() })
 </script>
@@ -161,6 +179,13 @@ onBeforeUnmount(() => { disposed = true; generation += 1; stopElapsed() })
       </div>
       </div>
     </slot>
+    <div v-if="config.outputDirectory" class="audio-tool-field"><label for="output-directory">{{ t('pluginTools.outputDirectory') }}</label>
+      <div class="audio-tool-path"><n-input id="output-directory" v-model:value="outputDir" clearable :disabled="running || picking" :placeholder="settings.outputDir" :input-props="{ 'aria-label': t('pluginTools.outputDirectory') }" />
+        <n-button secondary :disabled="running || picking" :aria-label="t('pluginTools.chooseOutputDirectory')" @click="pickOutputDirectory"><template #icon><n-icon :component="FolderOpenOutline" /></template>{{ t('common.browse') }}
+</n-button>
+      </div>
+      <small class="operation-detail">{{ t('pluginTools.outputDirectoryHint') }}</small>
+    </div>
     <p v-if="loading" role="status" class="operation-detail">{{ t('pluginTools.loading') }}</p>
     <div class="audio-tool-actions"><n-button id="run" type="primary" :disabled="!canRun" :loading="running" @click="run">{{ t('pluginTools.run') }}</n-button></div>
     <n-alert v-if="error" id="error" type="error" :bordered="false">{{ error }}</n-alert>
@@ -168,8 +193,8 @@ onBeforeUnmount(() => { disposed = true; generation += 1; stopElapsed() })
     <n-button v-if="!spec && !loading" id="retry" secondary @click="describe">{{ t('pluginTools.retry') }}</n-button>
     <template #status>
       <section v-if="results" id="results" class="tool-result-stack">
-        <div v-for="(value, name) in results" :key="name" class="tool-result-section"><slot name="result" :port="name" :output="value" :operation="operationId"><strong>{{ name }}</strong>
-          <template v-if="value.kind === 'audio_file' && value.path"><span class="operation-path">{{ value.path }}</span><n-button text size="small" @click="reveal(value.path)">{{ t('tools.openOutputLocation') }}</n-button></template>
+        <div v-for="(value, name) in results" :key="name" class="tool-result-section"><slot name="result" :port="name" :output="value" :operation="operationId"><strong>{{ te(`outputs.${name}`) ? t(`outputs.${name}`) : name }}</strong>
+          <template v-if="filePath(name, value)"><span class="operation-path">{{ filePath(name, value) }}</span><n-button text size="small" @click="reveal(filePath(name, value))">{{ t('tools.openOutputLocation') }}</n-button></template>
           <pre v-else class="tool-result-json">{{ outputText(value) }}</pre></slot>
         </div>
       </section>

@@ -1,6 +1,6 @@
 [project]
 name = "pymss-plugin-timing"
-version = "0.3.1"
+version = "0.3.2"
 description = "pymss plugin: pitch and speed processing with Radius or Rubber Band R3"
 requires-python = ">=3.10"
 dependencies = ["numpy", "soundfile"]
@@ -13,6 +13,10 @@ requires_pymss = ">=2.3.0"
 [[tool.pymss.plugin.operations]]
 id = "pymss.timing.process"
 title = "Pitch and Speed"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.timing.process_file"
+title = "Process Audio File"
 
 [[tool.pymss.plugin.operations]]
 id = "pymss.timing.pitch_shift"
@@ -28,6 +32,7 @@ sdk_version = 1
 required_capabilities = [
     "app.info",
     "files.pickAudio",
+    "files.pickDirectory",
     "files.reveal",
     "operations.cancel",
     "operations.describe",
@@ -45,6 +50,7 @@ description = "Adjust pitch and speed with Radius or Rubber Band."
 
 [tool.pymss.studio.locales."en".operations]
 "pymss.timing.process" = "Pitch and Speed"
+"pymss.timing.process_file" = "Pitch and Speed"
 "pymss.timing.pitch_shift" = "Pitch Shift"
 "pymss.timing.time_stretch" = "Time Stretch"
 
@@ -55,6 +61,7 @@ tags = ["变调", "变速", "时间拉伸"]
 
 [tool.pymss.studio.locales."zh-CN".operations]
 "pymss.timing.process" = "音高与速度"
+"pymss.timing.process_file" = "音高与速度"
 "pymss.timing.pitch_shift" = "音高调整"
 "pymss.timing.time_stretch" = "时间拉伸"
 
