@@ -1,40 +1,34 @@
-# Radius external runtime
+# Radius native runtime
 
-The optional pitch and time-stretching engine is radius-rs:
+The packaged engine is radius-rs 0.2.0, maintained at:
 https://github.com/SUC-DriverOld/radius-rs
 
-This development cycle uses the current radius-rs source, including its native
-tempo scheduling and the progress-counter fix. The adapter does not add version
-gates between development snapshots. Supply the resulting binary explicitly;
-the preparation script records the packaged bytes' SHA256 in `runtime.json`.
-The old v0.0.3 release is not selected for this development build.
+Source revision: `c987c1a8d62b2ab46959483bb6e8abe04a8e2ace`.
+Corresponding upstream source archive:
+https://github.com/SUC-DriverOld/radius-rs/archive/c987c1a8d62b2ab46959483bb6e8abe04a8e2ace.tar.gz
 
-The project maintainer confirmed MIT distribution authorization on 2026-11-01.
-The authorized license is retained in `licenses/LICENSE.radius` and copied
-alongside the prepared native executable. The inspected upstream source
-does not contain a LICENSE file or Cargo license declaration; this notice
-records the explicit authorization rather than inferring a license from source
-availability. Upstream should retain the same license in future source releases.
-Original derivation credits are retained in the radius-rs README, which identifies
-the pyradius and libradius implementations by baicai-1145 as its references.
+The native program is licensed under LGPL-3.0-or-later, as declared in that
+revision's Cargo.toml. The upstream LICENSE and the GPLv3 terms it incorporates
+are included as `LICENSE.radius` and `COPYING.GPL3` beside each executable.
+The Python adapter has its own MIT license. Earlier development notices about
+MIT authorization do not describe the packaged 0.2.0 release's license.
+Upstream derivation credits remain in the source repository README.
 
-The preparation script copies the developer-supplied current Radius build for
-local packaging. Native binaries are ignored by Git and are never downloaded during
-plugin discovery, installation or execution. `PYMSS_RADIUS` may instead select
-a separately installed executable. Third-party dependencies, including FFmpeg,
-retain their own licenses.
+Windows x86_64 and macOS arm64 CLI releases are included under `bin/`.
+Each `runtime.json` records the release asset, SHA256, target and source revision.
+The preparation script checks the pinned upstream SHA256 before publication.
+Plugin installation copies these files; it does not build or download an engine.
+`PYMSS_RADIUS` may explicitly select another compatible CLI executable.
 
-The executable must match the target architecture and CPU instruction set.
-The tested executable delegates audio I/O to
-FFmpeg, located on PATH or using the upstream `RADIUS_FFMPEG` variable.
+The adapter sets `RADIUS_FFMPEG_IO=1` in the child environment so decoding,
+encoding and probing use FFmpeg. `RADIUS_FFMPEG` selects that program when it is
+not on PATH; setting its path alone does not select the FFmpeg backend.
+Studio supplies its bundled FFmpeg through PATH. Standalone pymss callers must
+provide FFmpeg on PATH or through `RADIUS_FFMPEG`.
 
-This plugin uses Radius's `vc` mode and accepts 44100 and 48000 Hz audio.
-Other sample rates are rejected explicitly; no hidden resampling is performed.
-The unified operation supports pitch and speed together. Existing pitch-only
-entry points keep tempo 100, preserving their duration contract.
-Quality depends on the material,
-and no universal quality ranking is asserted by the adapter.
-
-Validation compares adapter output with the current native CLI sample for
-sample. The adapter applies no pitch, gain or duration correction to the engine's
-output; auditioning remains necessary for quality comparisons.
+This plugin selects Radius VC and accepts sample rates from 8000 to 192000 Hz,
+matching the upstream engine. The input rate is preserved without implicit
+resampling. Duration percentages are passed directly to `--tempo`: 50 halves the duration, 100 keeps
+it, and 200 doubles it. Progress uses the CLI's `RADIUS_PROGRESS=1` counters.
+No additional pitch, gain or duration correction is applied to Radius output.
+The algorithm source remains maintained upstream.

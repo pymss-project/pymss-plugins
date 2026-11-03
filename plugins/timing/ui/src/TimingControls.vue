@@ -2,9 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const props = defineProps<{ params: Record<string, unknown>; errors: Record<string, string>; disabled: boolean }>()
+defineProps<{ params: Record<string, unknown>; errors: Record<string, string>; disabled: boolean }>()
 const { t } = useI18n()
-const radius = computed(() => props.params.algorithm === 'radius')
 const algorithms = computed(() => ['rubberband', 'radius'].map(value => ({ value, label: t(`plugin.algorithms.${value}`) })))
 </script>
 
@@ -23,7 +22,7 @@ const algorithms = computed(() => ['rubberband', 'radius'].map(value => ({ value
     <div class="audio-tool-field">
       <label for="param-duration_percent">{{ t('parameters.duration_percent') }}</label>
       <n-input-number id="param-duration_percent" :value="params.duration_percent as number | null" :disabled="disabled" :min="25" :max="400" :step="1" @update:value="params.duration_percent = $event" />
-      <small class="timing-hint">{{ t(radius ? 'plugin.radiusDurationHint' : 'plugin.durationHint') }}</small>
+      <small class="timing-hint">{{ t('plugin.durationHint') }}</small>
       <small v-if="errors.duration_percent" class="timing-error">{{ t('pluginTools.invalid') }}</small>
     </div>
   </div>

@@ -28,7 +28,13 @@ RELEASES = {
         {"rubberband": "rubberband", "COPYING": "COPYING", "README.md": "README.md", "CHANGELOG": "CHANGELOG"},
     ),
 }
-RADIUS_TARGETS = {"win32-x86_64", "darwin-arm64"}
+RADIUS_VERSION = "0.2.0"
+RADIUS_COMMIT = "c987c1a8d62b2ab46959483bb6e8abe04a8e2ace"
+RADIUS_RELEASES = {
+    "win32-x86_64": ("radius-0.2.0-windows-x64.exe", "5fc83ddf471444119695b389551dac635829a3663a4a9ab36d68d0c5bd121f9f"),
+    "darwin-arm64": ("radius-0.2.0-macOS-arm64", "dcecc4f6b02a2bfa68f829c274fc77004bf9e531743f5558eac1e21013eacf3d"),
+}
+RADIUS_TARGETS = set(RADIUS_RELEASES)
 
 
 def prepare(target: str, output: Path, *, archive: Path | None = None) -> Path:
@@ -79,6 +85,7 @@ def prepare(target: str, output: Path, *, archive: Path | None = None) -> Path:
             (stage / "rubberband").chmod(0o755)
         (stage / "runtime.json").write_text(json.dumps({
             "version": VERSION, "target": target, "archive": filename, "sha256": checksum,
+            "binarySha256": hashlib.sha256((stage / ("rubberband.exe" if target.startswith("win32-") else "rubberband")).read_bytes()).hexdigest(),
             "license": "GPL-2.0-or-later", "source": f"https://breakfastquay.com/files/releases/rubberband-{VERSION}.tar.bz2",
         }, indent=2) + "\n", encoding="utf-8")
         shutil.copyfile(Path(__file__).resolve().parents[1] / "RUBBERBAND-NOTICE.md", stage / "RUBBERBAND-NOTICE.md")
@@ -100,6 +107,9 @@ def prepare_radius(target: str, output: Path, *, binary: Path | None = None) -> 
     binary = binary.expanduser().resolve()
     if not binary.is_file() or not 0 < binary.stat().st_size <= 32 * 1024 * 1024:
         raise ValueError("Radius binary must be a non-empty regular file no larger than 32 MiB")
+    asset, checksum = RADIUS_RELEASES[target]
+    if hashlib.sha256(binary.read_bytes()).hexdigest() != checksum:
+        raise ValueError("Radius binary SHA256 does not match the pinned upstream release")
     output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".radius-", dir=output) as temporary:
         scratch = Path(temporary)
@@ -111,10 +121,13 @@ def prepare_radius(target: str, output: Path, *, binary: Path | None = None) -> 
             program.chmod(0o755)
         package = Path(__file__).resolve().parents[1]
         shutil.copyfile(package / "licenses/LICENSE.radius", stage / "LICENSE.radius")
+        shutil.copyfile(package / "licenses/COPYING.GPL3", stage / "COPYING.GPL3")
         shutil.copyfile(package / "RADIUS-NOTICE.md", stage / "RADIUS-NOTICE.md")
         (stage / "runtime.json").write_text(json.dumps({
-            "target": target, "asset": binary.name, "sha256": hashlib.sha256(program.read_bytes()).hexdigest(),
-            "license": "MIT", "source": "https://github.com/SUC-DriverOld/radius-rs",
+            "version": RADIUS_VERSION, "target": target, "asset": asset, "sha256": checksum,
+            "license": "LGPL-3.0-or-later", "sourceCommit": RADIUS_COMMIT,
+            "source": f"https://github.com/SUC-DriverOld/radius-rs/tree/{RADIUS_COMMIT}",
+            "sourceArchive": f"https://github.com/SUC-DriverOld/radius-rs/archive/{RADIUS_COMMIT}.tar.gz",
         }, indent=2) + "\n", encoding="utf-8")
         destination.parent.mkdir(parents=True, exist_ok=True)
         os.rename(stage, destination)
@@ -128,7 +141,7 @@ def main(argv=None) -> int:
     parser.add_argument("--target", default=target)
     parser.add_argument("--engine", choices=["all", "rubberband", "radius"], default="all")
     parser.add_argument("--archive", type=Path, help="Use a previously downloaded official archive (SHA256 is still checked)")
-    parser.add_argument("--radius-binary", type=Path, help="Use the current Radius source build; its SHA256 is recorded in runtime.json")
+    parser.add_argument("--radius-binary", type=Path, help="Use the pinned Radius 0.2.0 CLI executable (SHA256 is checked)")
     parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[1] / "bin")
     args = parser.parse_args(argv)
     if (args.engine == "radius" or args.engine == "all" and args.target in RADIUS_TARGETS) and args.radius_binary is None:

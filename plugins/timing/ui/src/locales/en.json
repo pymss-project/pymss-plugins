@@ -31,9 +31,8 @@
   },
   "plugin": {
     "title": "Pitch and Time",
-    "algorithms": {"rubberband": "Rubber Band (faster)", "radius": "Radius (quality first, slower)"},
-    "algorithmHint": "Radius prioritizes quality and takes longer. Rubber Band is faster. Both support pitch and speed changes. Results depend on the material; compare by listening.",
-    "radiusDurationHint": "50% halves the duration (faster); 200% doubles it (slower). Radius input must be 44.1 or 48 kHz.",
+    "algorithms": {"rubberband": "Rubber Band (excellent sound quality, faster)", "radius": "Radius (higher potential, slower)"},
+    "algorithmHint": "Rubber Band combines excellent sound quality with faster processing. Radius offers greater potential at a slower processing speed. Both support pitch and speed changes. Results depend on the material; compare by listening.",
     "durationHint": "100% keeps the duration; 50% halves it (faster), and 200% doubles it (slower).",
     "operations": {
       "pitch_shift": "Pitch shift",

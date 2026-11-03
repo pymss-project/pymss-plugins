@@ -1,0 +1,10 @@
+{
+  "version": "0.2.0",
+  "target": "win32-x86_64",
+  "asset": "radius-0.2.0-windows-x64.exe",
+  "sha256": "5fc83ddf471444119695b389551dac635829a3663a4a9ab36d68d0c5bd121f9f",
+  "license": "LGPL-3.0-or-later",
+  "sourceCommit": "c987c1a8d62b2ab46959483bb6e8abe04a8e2ace",
+  "source": "https://github.com/SUC-DriverOld/radius-rs/tree/c987c1a8d62b2ab46959483bb6e8abe04a8e2ace",
+  "sourceArchive": "https://github.com/SUC-DriverOld/radius-rs/archive/c987c1a8d62b2ab46959483bb6e8abe04a8e2ace.tar.gz"
+}

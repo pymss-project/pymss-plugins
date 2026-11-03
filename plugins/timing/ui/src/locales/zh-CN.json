@@ -31,9 +31,8 @@
   },
   "plugin": {
     "title": "音高与速度",
-    "algorithms": {"rubberband": "Rubber Band（较快）", "radius": "Radius（音质优先，较慢）"},
-    "algorithmHint": "Radius 侧重音质，处理较慢；Rubber Band 处理较快。两种算法均支持变调与变速，效果因素材而异，建议试听后选择。",
-    "radiusDurationHint": "50% 为一半时长（加速），200% 为两倍时长（慢放）；Radius 输入采样率须为 44.1 或 48 kHz。",
+    "algorithms": {"rubberband": "Rubber Band（音质出色，速度更快）", "radius": "Radius（上限更高，速度较慢）"},
+    "algorithmHint": "Rubber Band 音质出色，速度更快；Radius 上限更高，速度较慢。两种算法均支持变调与变速，效果因素材而异，建议试听后选择。",
     "durationHint": "100% 保持原时长，50% 为一半时长（加速），200% 为两倍时长（慢放）。",
     "operations": {
       "pitch_shift": "变调",

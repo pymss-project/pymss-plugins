@@ -16,6 +16,15 @@ spec.loader.exec_module(runtime)
 
 
 class TimingRuntimeTests(unittest.TestCase):
+    def test_radius_checksum_failure_never_publishes_an_unverified_binary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binary = root / "radius.exe"
+            binary.write_bytes(b"incorrect native runtime")
+            with self.assertRaisesRegex(ValueError, "SHA256"):
+                runtime.prepare_radius("win32-x86_64", root / "bin", binary=binary)
+            self.assertFalse((root / "bin/win32-x86_64/radius").exists())
+
     def test_engines_can_be_prepared_in_either_order_without_overwriting(self):
         filename, _, members = runtime.RELEASES["win32-x86_64"]
         for order in [("radius", "rubberband"), ("rubberband", "radius")]:
@@ -29,6 +38,7 @@ class TimingRuntimeTests(unittest.TestCase):
                 binary.write_bytes(b"verified radius fixture")
                 rubber_release = (filename, hashlib.sha256(archive.read_bytes()).hexdigest(), members)
                 with patch.dict(runtime.RELEASES, {"win32-x86_64": rubber_release}), \
+                     patch.dict(runtime.RADIUS_RELEASES, {"win32-x86_64": ("radius.exe", hashlib.sha256(binary.read_bytes()).hexdigest())}), \
                      patch("urllib.request.urlopen") as network:
                     outputs = {}
                     previous = {}
@@ -47,7 +57,7 @@ class TimingRuntimeTests(unittest.TestCase):
                         self.assertEqual(path.read_bytes(), content)
                     network.assert_not_called()
 
-    def test_radius_preparation_preserves_other_engine_and_copies_mit_license(self):
+    def test_radius_preparation_preserves_other_engine_and_copies_upstream_licenses(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             target = root / "bin/win32-x86_64"
@@ -55,14 +65,46 @@ class TimingRuntimeTests(unittest.TestCase):
             (target / "rubberband.exe").write_bytes(b"existing rubberband")
             binary = root / "radius.exe"
             binary.write_bytes(b"verified radius fixture")
-            with patch("urllib.request.urlopen") as network:
+            with patch("urllib.request.urlopen") as network, \
+                 patch.dict(runtime.RADIUS_RELEASES, {"win32-x86_64": ("radius.exe", hashlib.sha256(binary.read_bytes()).hexdigest())}):
                 output = runtime.prepare_radius("win32-x86_64", root / "bin", binary=binary)
             network.assert_not_called()
             self.assertEqual((output / "radius.exe").read_bytes(), binary.read_bytes())
-            self.assertIn("MIT License", (output / "LICENSE.radius").read_text(encoding="utf-8"))
+            self.assertIn("GNU LESSER GENERAL PUBLIC LICENSE", (output / "LICENSE.radius").read_text(encoding="utf-8"))
+            self.assertIn("GNU GENERAL PUBLIC LICENSE", (output / "COPYING.GPL3").read_text(encoding="utf-8"))
             self.assertEqual((target / "rubberband.exe").read_bytes(), b"existing rubberband")
             metadata = json.loads((output / "runtime.json").read_text(encoding="utf-8"))
             self.assertEqual(metadata["sha256"], hashlib.sha256((output / "radius.exe").read_bytes()).hexdigest())
+            self.assertEqual(metadata["license"], "LGPL-3.0-or-later")
+            self.assertEqual(metadata["version"], "0.2.0")
+
+    def test_shipped_engines_have_matching_platform_manifests_and_binary_hashes(self):
+        package = SCRIPT.parents[1]
+        for target in ["win32-x86_64", "darwin-arm64"]:
+            for engine in ["radius", "rubberband"]:
+                with self.subTest(target=target, engine=engine):
+                    directory = package / "bin" / target / engine
+                    manifest = json.loads((directory / "runtime.json").read_text(encoding="utf-8"))
+                    program = directory / (engine + (".exe" if target.startswith("win32-") else ""))
+                    self.assertEqual(manifest["target"], target)
+                    expected = manifest["sha256"] if engine == "radius" else manifest["binarySha256"]
+                    self.assertEqual(hashlib.sha256(program.read_bytes()).hexdigest(), expected)
+                    if engine == "radius":
+                        self.assertEqual(manifest["sha256"], runtime.RADIUS_RELEASES[target][1])
+                    if target == "win32-x86_64" and engine == "rubberband":
+                        self.assertTrue((directory / "sndfile.dll").is_file())
+
+    def test_local_source_install_preserves_both_platforms_and_engine_payloads(self):
+        from pymss.plugins.install import install
+
+        package = SCRIPT.parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            result = install(str(package), plugins_dir=Path(directory), no_deps=True)
+            self.assertEqual(result.name, "pymss.timing")
+            expected = {p.relative_to(package): p.read_bytes() for p in (package / "bin").rglob("*") if p.is_file()}
+            self.assertTrue(expected)
+            for relative, content in expected.items():
+                self.assertEqual((result.path / relative).read_bytes(), content, str(relative))
 
     def test_radius_requires_an_explicit_current_build_without_downloading(self):
         with tempfile.TemporaryDirectory() as directory:

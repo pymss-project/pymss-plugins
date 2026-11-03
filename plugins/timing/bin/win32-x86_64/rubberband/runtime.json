@@ -1,0 +1,9 @@
+{
+  "version": "4.0.0",
+  "target": "win32-x86_64",
+  "archive": "rubberband-4.0.0-gpl-executable-windows.zip",
+  "sha256": "f2d47fc64dbb42f6cc62edf7933ac4fa89d8f0ef8b9cf97b6afc263a7fe05644",
+  "binarySha256": "d26d81e20f48ea33070e638f58bdeb6a61ce7f0946d8f2629f30441caa2905d1",
+  "license": "GPL-2.0-or-later",
+  "source": "https://breakfastquay.com/files/releases/rubberband-4.0.0.tar.bz2"
+}

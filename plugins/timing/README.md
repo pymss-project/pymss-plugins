@@ -27,48 +27,51 @@ Requires pymss 2.3.0 or newer, which provides
 setup also verifies these APIs before registering capabilities or operations,
 including when only neutral transforms are requested.
 
-For a source checkout, build the current radius-rs source and explicitly prepare
-the native runtimes:
+## Packaged native programs
+
+The repository includes Radius 0.2.0 and Rubber Band 4.0.0 CLI programs for
+Windows x86_64 and macOS arm64. Catalog source installs include these files;
+no compiler, separate Radius installation or native build workflow is required.
+Windows also includes the upstream `sndfile.dll` dependency for Rubber Band.
+The programs are located under `bin/<platform-arch>/<engine>/` with their
+licenses and `runtime.json` provenance records. They remain outside the Studio
+application bundle and are maintained with the plugin.
+
+Radius always uses the FFmpeg I/O backend in this adapter. The child process
+receives `RADIUS_FFMPEG_IO=1`; `RADIUS_FFMPEG` is an optional executable path.
+Studio supplies FFmpeg through PATH. CLI users must provide FFmpeg through PATH
+or that environment variable. Users do not need to set the I/O backend flag.
+
+An explicit `PYMSS_RADIUS` or `PYMSS_RUBBERBAND` override takes precedence over
+the packaged program. A missing or unusable selected engine reports its error
+without substituting the other algorithm. Linux and macOS x86_64 users currently
+need a compatible system runtime; no bundled Radius program is supplied there.
+Downloaded macOS programs remain subject to the system's execution policy.
+
+Maintainers update the upstream source and CLI release separately from this
+repository. For each supported target, download the pinned Radius CLI and run:
 
 ```sh
-python plugins/timing/scripts/prepare_runtime.py --radius-binary /path/to/current/radius
+python plugins/timing/scripts/prepare_runtime.py --target win32-x86_64 --radius-binary /path/to/radius-0.2.0-windows-x64.exe
+python plugins/timing/scripts/prepare_runtime.py --target darwin-arm64 --radius-binary /path/to/radius-0.2.0-macOS-arm64
 ```
 
-The script prepares the pinned Rubber Band 4.0.0 release and the supplied Radius
-build on Windows x86_64 and macOS arm64. Rubber Band downloads retain their pinned
-SHA256 checks; the supplied Radius binary's SHA256 is recorded in `runtime.json`.
-The old Radius v0.0.3 binary is not downloaded. The current source implements
-tempo directly in the engine, replacing that release's postprocessing stage.
-macOS x86_64 packaging currently supports Rubber Band only.
-`--engine rubberband` or `--engine radius` prepares one engine explicitly.
-Each engine is published to its own directory, so they can be prepared in either
-order without replacing the other engine. Preparing an already present engine is
-rejected before any download or overwrite.
-`--archive <path>` permits preparation from a previously downloaded archive;
-`--radius-binary <path>` uses the current source build supplied by the developer;
-`--target` and `--output` support development packaging. No native program is
-downloaded or built during plugin installation, discovery or processing.
-Prepare the runtime **before installing this local directory** to include it
-in the installed copy. Git source archives do not contain the ignored `bin/`
-directory, so catalog source installs require a system runtime or explicit path.
+The script checks the Radius and Rubber Band release SHA256 values, preserves
+existing destinations and records the copied bytes. `--archive` supplies a
+previously downloaded Rubber Band archive; `--engine radius` or
+`--engine rubberband` prepares one engine. To replace an existing release,
+prepare into a separate `--output` directory, verify it, then replace the tracked
+runtime files and update the plugin version and operation metadata. Preserve
+Git executable mode `100755` on both macOS programs when committing from Windows.
+Native files are marked `-text` in `.gitattributes` to preserve their bytes.
 
-On Linux, install your distribution's Rubber Band >=3.0 package or compile the
-upstream command-line tool and place it on PATH. No Linux binary is claimed by
-the preparation script. On macOS, downloaded executables remain subject to
-Gatekeeper; follow the system's security prompts for the trusted upstream tool.
-Prepared native binaries have not been signed or notarized by this project.
+Radius 0.2.0 is LGPL-3.0-or-later; Rubber Band retains its upstream license.
+Their licenses do not change the adapter's MIT license. See
+[RADIUS-NOTICE.md](RADIUS-NOTICE.md) and [RUBBERBAND-NOTICE.md](RUBBERBAND-NOTICE.md)
+for provenance, source locations and third-party distribution notices.
 
-For Radius, supply the current [radius-rs source build](https://github.com/SUC-DriverOld/radius-rs)
-using `PYMSS_RADIUS`, `bin/<platform-arch>/radius/radius[.exe]` or `radius` on PATH
-(a directly placed `bin/<platform-arch>/radius[.exe]` is also accepted).
-Build for the target architecture and instruction set. Audio I/O requires FFmpeg on PATH or via
-`RADIUS_FFMPEG`. Radius's confirmed MIT authorization and derivation credits are
-retained in [RADIUS-NOTICE.md](RADIUS-NOTICE.md) and `licenses/LICENSE.radius`.
-An unavailable selected engine reports an error; it never silently substitutes
-the other algorithm.
-
-Radius's phase-vocoder mode prioritizes pitch-shifting quality for complex
-material, at a higher processing cost. Rubber Band is the faster choice.
+Radius uses a phase vocoder and Rubber Band uses its R3 engine. Processing
+speed and the resulting sound depend on the source material.
 Both engines support pitch and speed changes. The best result depends on the input; compare by
 listening. Studio provides one algorithm selector, semitone control and duration
 percentage control. Duration remains editable with either engine, and changing

@@ -55,8 +55,8 @@ def process(audio, sample_rate, n_steps: float = 0, duration_percent: float = 10
     context.check_cancelled()
     if semitones == 0 and duration == 100:
         return samples.copy()
-    if sr not in (44100, 48000):
-        raise ToolError("TIMING_RADIUS_SAMPLE_RATE_UNSUPPORTED", "Radius VC requires 44100 or 48000 Hz audio; resample the input or choose Rubber Band")
+    if not 8000 <= sr <= 192000:
+        raise ToolError("TIMING_RADIUS_SAMPLE_RATE_UNSUPPORTED", "Radius VC supports sample rates from 8000 to 192000 Hz")
     # Match Radius's --tempo: 50 halves the duration, 200 doubles it.
     frames = math.floor(samples.shape[-1] * (duration / 100) + 0.5)
     if frames < 1:
@@ -70,7 +70,7 @@ def process(audio, sample_rate, n_steps: float = 0, duration_percent: float = 10
               "--tempo", format(duration, ".17g"), "--bit-depth", "32f"],
              label="Radius", cwd=work, context=context, timeout=21600, output_limit=65536,
              output_callback=NativeProgress(context, "radius"),
-             environment={**os.environ, "RADIUS_PROGRESS": "1", "RADIUS_COLOR": "0", "NO_COLOR": "1"})
+             environment={**os.environ, "RADIUS_FFMPEG_IO": "1", "RADIUS_PROGRESS": "1", "RADIUS_COLOR": "0", "NO_COLOR": "1"})
         context.check_cancelled()
         output, rate = sf.read(work / "output.wav", dtype="float32", always_2d=True)
         channels = 1 if samples.ndim == 1 else samples.shape[0]

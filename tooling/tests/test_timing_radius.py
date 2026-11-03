@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import importlib
 from pathlib import Path
+import platform
+import sys
 import tempfile
 import time
 import unittest
@@ -19,11 +21,27 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class TimingAlgorithmTests(unittest.TestCase):
+    def test_radius_enables_ffmpeg_io_without_changing_the_parent_environment(self):
+        import soundfile as sf
+
+        def render(argv, *, cwd, environment, **options):
+            self.assertEqual(environment["RADIUS_FFMPEG_IO"], "1")
+            self.assertEqual(environment["RADIUS_FFMPEG"], "/configured/ffmpeg")
+            self.assertEqual(environment["RADIUS_PROGRESS"], "1")
+            sf.write(cwd / "output.wav", np.zeros((4096, 1), dtype=np.float32), 48000, subtype="FLOAT")
+
+        with patch.dict(os.environ, {"RADIUS_FFMPEG_IO": "0", "RADIUS_FFMPEG": "/configured/ffmpeg"}), \
+             patch.object(radius, "executable", return_value=Path("radius.exe")), \
+             patch.object(radius, "_run", side_effect=render):
+            radius.process(np.zeros(4096, dtype=np.float32), 48000, 3)
+            self.assertEqual(os.environ["RADIUS_FFMPEG_IO"], "0")
+
     def test_unsupported_radius_sample_rate_fails_before_starting_native_code(self):
         with patch.object(radius, "executable") as native:
-            with self.assertRaises(ToolError) as raised:
-                radius.pitch_shift([0.1], 16000, 3)
-            self.assertEqual(raised.exception.code, "TIMING_RADIUS_SAMPLE_RATE_UNSUPPORTED")
+            for sr in [7999, 192001]:
+                with self.subTest(sr=sr), self.assertRaises(ToolError) as raised:
+                    radius.pitch_shift([0.1], sr, 3)
+                self.assertEqual(raised.exception.code, "TIMING_RADIUS_SAMPLE_RATE_UNSUPPORTED")
             native.assert_not_called()
 
     def test_duration_percent_has_the_same_meaning_for_both_engines(self):
@@ -107,6 +125,47 @@ class TimingAlgorithmTests(unittest.TestCase):
                         params={"rate": 2, "algorithm": "radius"})
 
 
+class TimingInstalledRuntimeTests(unittest.TestCase):
+    def test_installed_plugin_uses_its_own_binaries_and_reports_progress(self):
+        from pymss.plugins.install import install
+
+        machine = platform.machine().lower()
+        target = f"{sys.platform}-" + {"amd64": "x86_64", "aarch64": "arm64"}.get(machine, machine)
+        if not (ROOT / "plugins/timing/bin" / target / "radius").is_dir():
+            self.skipTest("No bundled Radius for this platform")
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ):
+            os.environ.pop("PYMSS_RADIUS", None)
+            os.environ.pop("PYMSS_RUBBERBAND", None)
+            installed = install(str(ROOT / "plugins/timing"), plugins_dir=Path(directory) / "plugins", no_deps=True)
+            runtime = create_runtime()
+            runtime.load_plugins([installed.path.parent])
+            package = runtime._operations["pymss.timing.process"].run.__globals__["__package__"]
+            for engine in ["radius", "rubberband"]:
+                backend = importlib.import_module(package + "." + engine)
+                self.assertTrue(backend.executable().is_relative_to(installed.path))
+            for sr in [16000, 44100, 48000, 96000]:
+                frames = sr // 4
+                wave = (0.1 * np.sin(2 * np.pi * 440 * np.arange(frames) / sr)).astype(np.float32)
+                source = AudioArtifact(np.stack([wave, wave * 0.5]), sr)
+                for engine in ["radius", "rubberband"]:
+                    for duration in [50, 200]:
+                        with self.subTest(engine=engine, sr=sr, duration=duration):
+                            updates = []
+                            context = OperationContext(progress=lambda fraction, message, event: updates.append(fraction))
+                            result = runtime.run("pymss.timing.process", inputs={"audio": source},
+                                params={"algorithm": engine, "n_steps": 3, "duration_percent": duration}, context=context)["audio"]
+                            self.assertEqual(result.audio.ndim, 2)
+                            self.assertEqual(result.audio.shape[0], 2)
+                            # At a half-frame boundary either nearest integer preserves the requested duration.
+                            self.assertLessEqual(abs(result.audio.shape[1] - frames * duration / 100), 0.5)
+                            self.assertEqual(result.sample_rate, sr)
+                            self.assertTrue(np.isfinite(result.audio).all())
+                            self.assertGreater(float(np.abs(result.audio).max()), 0.001)
+                            self.assertTrue(any(0.05 < value < 1 for value in updates), updates)
+                            self.assertEqual(updates, sorted(updates))
+                            self.assertEqual(updates[-1], 1)
+
+
 class TimingDurationNativeTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -163,6 +222,19 @@ class RadiusNativeTests(unittest.TestCase):
     def frequency(self, wave):
         stable = wave[16000:-16000]
         return np.argmax(np.abs(np.fft.rfft(stable * np.hanning(len(stable))))) * self.rate / len(stable)
+
+    def test_native_radius_preserves_sample_rate_across_the_supported_range(self):
+        for sr in [8000, 12345, 16000, 22050, 32000, 88200, 96000, 192000]:
+            with self.subTest(sr=sr):
+                frames = sr // 2
+                wave = (0.1 * np.sin(2 * np.pi * 440 * np.arange(frames) / sr)).astype(np.float32)
+                source = AudioArtifact(np.stack([wave, wave * 0.5]), sr)
+                result = self.runtime.run("pymss.timing.process", inputs={"audio": source},
+                    params={"n_steps": 3, "duration_percent": 100, "algorithm": "radius"})["audio"]
+                self.assertEqual(result.sample_rate, sr)
+                self.assertEqual(result.audio.shape, source.audio.shape)
+                self.assertTrue(np.isfinite(result.audio).all())
+                self.assertGreater(float(np.abs(result.audio).max()), 0.001)
 
     def test_pitch_operation_preserves_layout_duration_and_uses_current_samples(self):
         source = AudioArtifact(np.stack([self.tone, self.tone * 0.5]), self.rate,

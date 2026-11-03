@@ -1,1 +1,1 @@
-bin/
+# Native CLI releases under bin/ are part of the installable plugin.

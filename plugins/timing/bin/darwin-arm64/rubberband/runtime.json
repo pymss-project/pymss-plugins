@@ -1,0 +1,9 @@
+{
+  "version": "4.0.0",
+  "target": "darwin-arm64",
+  "archive": "rubberband-4.0.0-gpl-executable-macos.tar.bz2",
+  "sha256": "0dc91509a31a94c1144436cc20e6f1d165bdab39fe125f9be7d46139921b733f",
+  "binarySha256": "bffe8a37f204958352e768fc4a751d3dbce18e3b42c2a3427a80498e7d8cee79",
+  "license": "GPL-2.0-or-later",
+  "source": "https://breakfastquay.com/files/releases/rubberband-4.0.0.tar.bz2"
+}
