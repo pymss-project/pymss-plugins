@@ -1,8 +1,9 @@
 {
   "titleKey": "plugin.title",
+  "outputDirectory": true,
   "operations": [
     {
-      "id": "pymss.timing.process",
+      "id": "pymss.timing.process_file",
       "titleKey": "plugin.title"
     }
   ]

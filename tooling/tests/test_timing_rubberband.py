@@ -139,7 +139,11 @@ class TimingValidationTests(unittest.TestCase):
             reports = runtime.load_plugins([ROOT / "plugins"], validate_plugin=lambda p: None if p.name == "timing" else (_ for _ in ()).throw(ValueError("unselected")))
             timing = next(row for row in reports if row.get("plugin_id") == "pymss.timing")
             self.assertTrue(timing["loaded"], timing)
-            self.assertEqual(len([spec for spec in runtime.list_operations() if spec["id"].startswith("pymss.timing.")]), 3)
+            self.assertEqual(
+                {spec["id"] for spec in runtime.list_operations() if spec["id"].startswith("pymss.timing.")},
+                {"pymss.timing.process", "pymss.timing.process_file",
+                 "pymss.timing.pitch_shift", "pymss.timing.time_stretch"},
+            )
 
 
 class TimingNativeTests(unittest.TestCase):

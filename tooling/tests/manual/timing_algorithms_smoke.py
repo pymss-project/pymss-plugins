@@ -10,6 +10,11 @@ from playwright.sync_api import expect, sync_playwright
 from tool_views_smoke import ROOT, complete, fill_audio, open_tool, select, server_url
 
 
+def file_result(path, legacy=False):
+    return {"audio": {"kind": "opaque", "value": path} if legacy else
+            {"kind": "file", "mediaType": "audio/wav", "path": path}}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url")
@@ -24,6 +29,15 @@ def main():
                 page, tool = open_tool(browser, base, "timing", snapshot["operations"], dark=dark, width=width)
                 page.wait_for_load_state("networkidle")
                 expect(tool.locator("#operation")).to_have_count(0)
+                output_directory = tool.locator("#output-directory input")
+                expect(output_directory).to_have_value("/output")
+                choose_directory = tool.get_by_role("button", name="选择输出目录", exact=True)
+                choose_directory.click()
+                expect(output_directory).to_have_value("/output")
+                selected_directory = "/output/处理结果 folder"
+                page.evaluate("value=>bridge.directorySelection=value", selected_directory)
+                choose_directory.click()
+                expect(output_directory).to_have_value(selected_directory)
                 expect(tool.locator("#param-algorithm")).to_contain_text("Rubber Band")
                 duration = tool.locator("#param-duration_percent input")
                 expect(tool.locator('label[for="param-duration_percent"]')).to_have_text("时长（%）")
@@ -43,7 +57,11 @@ def main():
                 tool.locator("#run").click()
                 page.wait_for_function("bridge.active!==null")
                 request = page.evaluate("bridge.active")
-                assert request["params"]["operation"] == "pymss.timing.process", request
+                assert request["params"]["outputDir"] == selected_directory, request
+                expect(output_directory).to_be_disabled()
+                expect(choose_directory).to_be_disabled()
+                assert request["params"]["operation"] == "pymss.timing.process_file", request
+                assert request["params"]["inputs"]["audio"] == "/audio/source.wav", request
                 assert request["params"]["params"] == {"algorithm": "radius", "n_steps": 3, "duration_percent": 50}, request
                 page.evaluate("""() => document.querySelector('#plugin').contentWindow.postMessage({
                     jsonrpc:'2.0',method:'task.progress',params:{
@@ -53,24 +71,41 @@ def main():
                 expect(tool.locator("#progress")).to_be_visible()
                 expect(tool.locator(".operation-detail").filter(has_text="42%")).to_be_visible()
                 page.screenshot(path=str(args.artifacts / f"radius-progress-{width}.png"), full_page=True)
-                complete(page, {"audio": {"kind": "audio_file", "path": "/output/pitched.wav"}})
+                complete(page, file_result(selected_directory + "/source_processed.wav", legacy=dark))
                 expect(tool.locator("#run")).to_be_enabled()
                 page.keyboard.press("Escape")
+                expect(tool.locator("#results strong")).to_have_text("输出音频")
+                tool.get_by_role("button", name="打开输出位置", exact=True).click()
+                page.wait_for_function("value=>bridge.requests.some(item=>item.method==='files.reveal' && item.params.path===value)", arg=selected_directory + "/source_processed.wav")
                 page.evaluate("bridge.active=null")
                 select(tool, "#param-algorithm", "Rubber Band（音质出色，速度更快）")
                 expect(duration).to_be_enabled()
                 expect(duration).to_have_value("50")
                 duration.fill("200")
                 duration.press("Tab")
+                expect(tool.locator(".n-base-select-option:visible")).to_have_count(0)
+                selected_directory += "_manual"
+                output_directory.fill(selected_directory)
+                output_directory.press("Tab")
                 page.screenshot(path=str(args.artifacts / f"rubberband-editable-{width}.png"), full_page=True)
                 tool.locator("#run").click()
                 page.wait_for_function("bridge.active!==null")
                 request = page.evaluate("bridge.active")
+                assert request["params"]["outputDir"] == selected_directory, request
                 assert request["params"]["params"] == {"algorithm": "rubberband", "n_steps": 3, "duration_percent": 200}, request
-                complete(page, {"audio": {"kind": "audio_file", "path": "/output/processed.wav"}})
+                complete(page, file_result(selected_directory + "/source_processed.wav", legacy=dark))
+                expect(tool.locator("#run")).to_be_enabled()
+                page.wait_for_function("value=>bridge.settings.form.outputDir===value", arg=selected_directory)
+                page.locator("#plugin").evaluate("frame=>{frame.src=frame.src}")
+                page.wait_for_function("bridge.requests.filter(item=>item.method==='pymss.ready').length>=2")
+                expect(output_directory).to_have_value(selected_directory)
+                output_directory.fill("")
+                tool.locator("#run").click()
+                page.wait_for_function("bridge.active!==null && !Object.hasOwn(bridge.active.params,'outputDir')")
+                complete(page, file_result("/output/source_processed.wav", legacy=dark))
                 expect(tool.locator("#run")).to_be_enabled()
                 page.close()
-            print(json.dumps({"radiusDuration": "50%, editable", "rubberbandDuration": "200%, editable", "progress": "42%", "themes": 2}))
+            print(json.dumps({"radiusDuration": "50%, editable", "rubberbandDuration": "200%, editable", "progress": "42%", "themes": 2, "outputDirectory": "selected, restored and defaulted", "resultLabel": "localized"}))
         finally:
             browser.close()
 

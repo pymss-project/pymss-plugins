@@ -15,9 +15,9 @@ from file_tool_views_smoke import server_url
 ROOT = Path(__file__).resolve().parents[3]
 HOST = """({specs,url,dark}) => {
  const frame=document.createElement('iframe');frame.id='plugin';frame.sandbox='allow-scripts allow-forms';frame.style.cssText='border:0;width:100%;height:640px';
- const state=window.bridge={requests:[],held:[],holdDescriptions:false,rejectDescription:false,rejectNext:false,active:null};
+ const state=window.bridge={requests:[],held:[],holdDescriptions:false,rejectDescription:false,rejectNext:false,active:null,settings:{},directorySelection:null};
  const sdk={sdkVersion:1,capabilities:[
-  'app.info','files.pickAudio','files.reveal','operations.describe',
+  'app.info','files.pickAudio','files.pickDirectory','files.reveal','operations.describe',
   'operations.start','operations.cancel','settings.read','settings.write','ui.overlay',
  ]};
  window.reply=(id,result)=>frame.contentWindow.postMessage({jsonrpc:'2.0',id,result},'*');
@@ -34,13 +34,14 @@ HOST = """({specs,url,dark}) => {
     else if(state.previousStyle)frame.style.cssText=state.previousStyle;
   }
   else if(data.method==='app.info')reply(data.id,{...sdk,locale:'zh-CN',defaultOutputDir:'/output'});
-  else if(data.method==='settings.read')reply(data.id,{});
-  else if(data.method==='settings.write')reply(data.id,data.params.data);
+  else if(data.method==='settings.read')reply(data.id,state.settings);
+  else if(data.method==='settings.write'){state.settings=data.params.data;reply(data.id,state.settings)}
   else if(data.method==='operations.describe'){
    if(state.rejectDescription){state.rejectDescription=false;frame.contentWindow.postMessage({jsonrpc:'2.0',id:data.id,error:{message:'Operation is unavailable'}},'*')}
    else if(state.holdDescriptions)state.held.push(data);
    else reply(data.id,specs.find(spec=>spec.id===data.params.operation));
   }else if(data.method==='files.pickAudio')reply(data.id,{path:'/audio/source.wav'});
+  else if(data.method==='files.pickDirectory')reply(data.id,state.directorySelection===null?null:{path:state.directorySelection});
   else if(data.method==='files.reveal')reply(data.id,{ok:true});
   else if(data.method==='operations.start'){
    state.active=data;
@@ -79,7 +80,7 @@ def complete(page, outputs=None):
 
 
 def fill_audio(tool):
-    tool.get_by_role("button", name="浏览", exact=True).click()
+    tool.locator(".audio-tool-path:has(#input-audio)").get_by_role("button", name="浏览", exact=True).click()
     expect(tool.locator("#input-audio input")).to_have_value("/audio/source.wav")
 
 

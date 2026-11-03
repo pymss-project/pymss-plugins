@@ -91,6 +91,54 @@
       "title": "Pitch and Speed"
     },
     {
+      "description": "Process an audio file and save a named WAV in the selected output directory",
+      "id": "pymss.timing.process_file",
+      "inputs": {
+        "audio": {
+          "type": "file"
+        }
+      },
+      "outputs": {
+        "audio": {
+          "media_type": "audio/wav",
+          "type": "file"
+        }
+      },
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "algorithm": {
+            "default": "rubberband",
+            "enum": [
+              "rubberband",
+              "radius"
+            ],
+            "type": "string"
+          },
+          "duration_percent": {
+            "default": 100.0,
+            "maximum": 400.0,
+            "minimum": 25.0,
+            "type": "number"
+          },
+          "n_steps": {
+            "default": 0.0,
+            "maximum": 24.0,
+            "minimum": -24.0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "algorithm",
+          "n_steps",
+          "duration_percent"
+        ],
+        "type": "object"
+      },
+      "schemaVersion": 1,
+      "title": "Process Audio File"
+    },
+    {
       "description": "Time-stretch with Rubber Band R3 without pitch change",
       "id": "pymss.timing.time_stretch",
       "inputs": {
@@ -121,6 +169,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.timing",
-  "pluginVersion": "0.3.1",
-  "sourceDigest": "738e282ded65123d63257b851e0da9691c77470477dc66d8c12c033ddba1ffd3"
+  "pluginVersion": "0.3.2",
+  "sourceDigest": "7cb02cee051ab798e4e9e56c4e033c73bb423d7c9bc338b8addde8eaf733820c"
 }
