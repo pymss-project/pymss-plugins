@@ -4,12 +4,12 @@ from __future__ import annotations
 import os
 import math
 from pathlib import Path
-import platform
 import shutil
-import sys
 import tempfile
 
 import numpy as np
+
+from pymss.operations.command import current_target
 
 from .rubberband import _audio, _number, _run
 from .progress import NativeProgress
@@ -24,8 +24,7 @@ def executable() -> Path:
         if not path.is_file() or (os.name != "nt" and not os.access(path, os.X_OK)):
             raise ToolError("TIMING_RADIUS_MISSING", "PYMSS_RADIUS must name an executable radius-rs program")
         return path
-    machine = platform.machine().lower()
-    target = f"{sys.platform}-" + {"amd64": "x86_64", "aarch64": "arm64"}.get(machine, machine)
+    target = current_target()
     root = Path(__file__).resolve().parents[1] / "bin" / target
     name = "radius.exe" if os.name == "nt" else "radius"
     for path in (root / "radius" / name, root / name):

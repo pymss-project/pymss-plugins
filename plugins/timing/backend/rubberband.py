@@ -4,13 +4,13 @@ from __future__ import annotations
 import math
 import os
 from pathlib import Path
-import platform
 import re
 import shutil
-import sys
 import tempfile
 
 import numpy as np
+
+from pymss.operations.command import current_target
 
 from .progress import NativeProgress
 
@@ -25,8 +25,7 @@ def executable() -> Path:
         if not path.is_file() or (os.name != "nt" and not os.access(path, os.X_OK)):
             raise RuntimeError("PYMSS_RUBBERBAND must name an executable Rubber Band 3.0 or newer")
         return path
-    machine = platform.machine().lower()
-    target = f"{sys.platform}-" + {"amd64": "x86_64", "aarch64": "arm64"}.get(machine, machine)
+    target = current_target()
     name = "rubberband.exe" if os.name == "nt" else "rubberband"
     root = Path(__file__).resolve().parents[1] / "bin" / target
     for packaged in (root / "rubberband" / name, root / name):

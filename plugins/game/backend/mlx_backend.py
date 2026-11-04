@@ -34,8 +34,9 @@ def have_gamemlx() -> bool:
 
 def is_apple_silicon() -> bool:
     import platform
+    import sys
 
-    return platform.system() == "Darwin" and platform.machine() == "arm64"
+    return sys.platform == "darwin" and platform.machine() == "arm64"
 
 
 def infer_mlx(
