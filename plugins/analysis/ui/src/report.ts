@@ -26,7 +26,7 @@ export function measurementRows(operation: string, value: unknown, locale: strin
   return rows
 }
 
-export type Spectrum = { points: string; maximumFrequency: number; minimumDb: number; maximumDb: number }
+export type Spectrum = { points: string; maximumFrequency: number; minimumDb: number; maximumDb: number; frequencies: number[]; magnitudesDb: number[] }
 export function spectrumChart(value: unknown): Spectrum | null {
   if (!record(value) || !Array.isArray(value.freqs) || !Array.isArray(value.magnitudes_db) || value.freqs.length !== value.magnitudes_db.length || value.freqs.length < 2) return null
   const frequencies = value.freqs, magnitudes = value.magnitudes_db
@@ -46,7 +46,20 @@ export function spectrumChart(value: unknown): Spectrum | null {
     const y = 20 + (maximumDb - magnitudes[selected]) / (maximumDb - minimumDb) * 200
     points.push(`${x.toFixed(2)},${y.toFixed(2)}`)
   }
-  return { points: points.join(' '), maximumFrequency, minimumDb, maximumDb }
+  return { points: points.join(' '), maximumFrequency, minimumDb, maximumDb, frequencies, magnitudesDb: magnitudes }
+}
+
+export function spectrumSample(chart: Spectrum, frequency: number): { frequency: number; magnitudeDb: number } | null {
+  if (!Number.isFinite(frequency)) return null
+  const { frequencies, magnitudesDb } = chart
+  let left = 0, right = frequencies.length - 1
+  while (left < right) {
+    const middle = Math.floor((left + right) / 2)
+    if (frequencies[middle] < frequency) left = middle + 1
+    else right = middle
+  }
+  if (left > 0 && frequency - frequencies[left - 1] <= frequencies[left] - frequency) left--
+  return { frequency: frequencies[left], magnitudeDb: magnitudesDb[left] }
 }
 
 export function reportText(value: unknown): string {

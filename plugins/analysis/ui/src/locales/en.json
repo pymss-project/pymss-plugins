@@ -54,6 +54,8 @@
       "measure_true_peak": "True peak estimates peaks between samples by oversampling; sample peak measures the original samples. Negative values are below digital full scale.",
       "measure_rms": "RMS measures average signal energy. dBFS is relative to digital full scale; RMS amplitude is a linear value."
     },
+    "frequency": "Frequency",
+    "magnitude": "Magnitude",
     "spectrumLabel": "Audio spectrum, frequency on the horizontal axis and magnitude on the vertical axis",
     "spectrumDescription": "View the frequency distribution and magnitude at the start of the audio.",
     "spectrumHint": "Analyzes the first FFT-sized segment, mixing channels to mono. Magnitudes are windowed FFT values in dB, not a whole-file average spectrum or dBFS levels.",

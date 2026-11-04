@@ -1,26 +1,34 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TerminalOutline } from '@vicons/ionicons5'
-import { refreshToolLayout } from '../layout'
+import { useMessage } from 'naive-ui'
+import { openToolOverlay, closeToolOverlay } from '../sdk'
 
 defineProps<{ busy?: boolean; percentage?: number | null }>()
 const { t } = useI18n()
+const message = useMessage()
 const show = ref(false)
-function setOverlay(open: boolean) {
-  document.documentElement.classList.toggle('tool-activity-open', open)
-  window.parent.postMessage({ jsonrpc: '2.0', method: 'pymss.overlay', params: { open } }, '*')
-  if (!open) refreshToolLayout()
+const opening = ref(false)
+let disposed = false
+async function openLog() {
+  if (opening.value || show.value) return
+  opening.value = true
+  try {
+    await openToolOverlay()
+    if (!disposed) show.value = true
+  } catch (error) {
+    if (!disposed) message.error(error instanceof Error ? error.message : String(error))
+  } finally { opening.value = false }
 }
-watch(show, open => { if (open) setOverlay(true) })
-onBeforeUnmount(() => setOverlay(false))
+onBeforeUnmount(() => { disposed = true; closeToolOverlay() })
 </script>
 <template>
-  <n-button class="tool-log-button" secondary size="small" :type="busy ? 'primary' : 'default'" @click="show = true">
+  <n-button class="tool-log-button" secondary size="small" :loading="opening" :type="busy ? 'primary' : 'default'" @click="openLog">
     <template #icon><n-icon :component="TerminalOutline" /></template>
     {{ t('tools.logButton') }}<span v-if="busy && percentage != null" class="tool-log-percentage">{{ percentage }}%</span><span v-else-if="busy" class="tool-log-running" aria-hidden="true" />
   </n-button>
-  <n-modal v-model:show="show" preset="card" :title="t('tools.activityLog')" class="tool-activity-dialog" :style="{ width: 'min(760px, calc(100vw - 32px))', maxHeight: 'calc(100dvh - 48px)' }" :content-style="{ overflow: 'auto', minHeight: '0' }" @after-leave="setOverlay(false)">
+  <n-modal v-model:show="show" preset="card" :title="t('tools.activityLog')" class="tool-activity-dialog" :style="{ width: 'min(760px, calc(100vw - 32px))', maxHeight: 'calc(100dvh - 48px)' }" :content-style="{ overflow: 'auto', minHeight: '0' }" @after-leave="closeToolOverlay">
     <slot v-if="show" />
   </n-modal>
 </template>

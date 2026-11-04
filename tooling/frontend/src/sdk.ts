@@ -1,6 +1,7 @@
 import { ref, watch, type Ref } from 'vue'
 import { useSettingsStore } from './stores/settings'
 import { presentation } from './presentation'
+import { refreshToolLayout } from './layout'
 
 type JsonObject = Record<string, unknown>
 type HostError = Error & { code?: string; data?: JsonObject }
@@ -19,6 +20,82 @@ let resolveReady!: () => void
 const ready = new Promise<void>(resolve => { resolveReady = resolve })
 export const persistenceError = ref('')
 export type UnlistenFn = () => void
+
+type OverlayBounds = { left: number; top: number; width: number }
+type Viewport = { width: number; height: number }
+let overlayBounds: OverlayBounds | null = null
+let overlayViewport: Viewport | null = null
+let overlayGeneration = 0
+let overlayClosing = false
+let overlayReady: (() => void) | undefined
+let overlayFailed: ((error: Error) => void) | undefined
+let overlayTimer: ReturnType<typeof setTimeout> | undefined
+
+function settleToolOverlay(error?: Error) {
+  clearTimeout(overlayTimer)
+  overlayTimer = undefined
+  const resolve = overlayReady, reject = overlayFailed
+  overlayReady = overlayFailed = undefined
+  if (error) reject?.(error)
+  else resolve?.()
+}
+
+function restoreToolOverlay() {
+  overlayBounds = overlayViewport = null
+  overlayClosing = false
+  const root = document.documentElement
+  root.classList.toggle('tool-overlay-anchored', false)
+  root.classList.toggle('tool-activity-open', false)
+  for (const key of ['left', 'top', 'width']) root.style.removeProperty(`--tool-overlay-${key}`)
+  settleToolOverlay()
+  refreshToolLayout()
+}
+
+function viewportMatches(viewport: Viewport) {
+  return Math.abs(window.innerWidth - viewport.width) <= 1 && Math.abs(window.innerHeight - viewport.height) <= 1
+}
+
+function syncToolOverlay() {
+  if (overlayClosing) {
+    // The window may have resized while the modal was open. Wait for the
+    // frame to leave the expanded viewport, rather than matching an old size.
+    const inline = !overlayBounds || (overlayViewport
+      ? !viewportMatches(overlayViewport)
+      : Math.abs(window.innerWidth - overlayBounds.width) <= 1)
+    if (inline) restoreToolOverlay()
+    return
+  }
+  if (!overlayBounds || (overlayViewport && !viewportMatches(overlayViewport))) return
+  const root = document.documentElement
+  for (const key of ['left', 'top', 'width'] as const) root.style.setProperty(`--tool-overlay-${key}`, `${overlayBounds[key]}px`)
+  root.classList.toggle('tool-overlay-anchored', true)
+  settleToolOverlay()
+}
+
+export function openToolOverlay(): Promise<void> {
+  overlayClosing = false
+  document.documentElement.classList.toggle('tool-activity-open', true)
+  const prepared = new Promise<void>((resolve, reject) => {
+    overlayReady = resolve
+    overlayFailed = reject
+    overlayTimer = setTimeout(() => {
+      settleToolOverlay(new Error('Studio did not respond'))
+      closeToolOverlay()
+    }, 30000)
+  })
+  window.parent.postMessage({ jsonrpc: '2.0', method: 'pymss.overlay', params: {
+    open: true, synchronized: true, generation: ++overlayGeneration,
+  } }, '*')
+  return prepared
+}
+
+export function closeToolOverlay() {
+  overlayClosing = true
+  window.parent.postMessage({ jsonrpc: '2.0', method: 'pymss.overlay', params: { open: false } }, '*')
+  syncToolOverlay()
+}
+
+window.addEventListener('resize', syncToolOverlay)
 
 export function isStudioHost() { return connected && !disposed }
 
@@ -45,15 +122,23 @@ window.addEventListener('message', event => {
     connected = true
     resolveReady()
   } else if (data.method === 'host.overlay') {
-    const root = document.documentElement
     const bounds = data.params?.bounds
-    const anchored = data.params?.open === true && bounds
+    const valid = data.params?.open === true && bounds
       && [bounds.left, bounds.top, bounds.width].every(value => typeof value === 'number' && Number.isFinite(value))
       && bounds.width > 0
-    root.classList.toggle('tool-overlay-anchored', Boolean(anchored))
-    for (const key of ['left', 'top', 'width']) {
-      if (anchored) root.style.setProperty(`--tool-overlay-${key}`, `${bounds[key]}px`)
-      else root.style.removeProperty(`--tool-overlay-${key}`)
+    if (!valid) {
+      if (data.params?.open === false) { overlayClosing = true; syncToolOverlay() }
+      else restoreToolOverlay()
+    } else {
+      if (data.params?.prepare === true && (data.params.generation !== overlayGeneration || !overlayReady || overlayClosing)) return
+      overlayBounds = bounds
+      const viewport = data.params?.viewport
+      overlayViewport = viewport && [viewport.width, viewport.height].every(value => typeof value === 'number' && Number.isFinite(value) && value > 0)
+        ? viewport : null
+      if (data.params?.prepare === true) window.parent.postMessage({ jsonrpc: '2.0', method: 'pymss.overlay', params: {
+        open: true, prepared: overlayGeneration,
+      } }, '*')
+      syncToolOverlay()
     }
   } else if (data.method === 'host.theme') {
     for (const [key, value] of Object.entries(data.params?.cssVariables || {})) {
@@ -205,6 +290,8 @@ export function open(path: string) { return call('shell.openExternal', { url: pa
 export function writeClipboardText(text: string) { return call('clipboard.writeText', { text }).promise }
 
 window.addEventListener('pagehide', () => {
+  restoreToolOverlay()
+  window.removeEventListener('resize', syncToolOverlay)
   disposed = true
   for (const handlers of pending.values()) {
     clearTimeout(handlers.timer)

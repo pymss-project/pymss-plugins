@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { measurementRows, spectrumChart, reportText } from '../../../plugins/analysis/ui/src/report.ts'
+import { measurementRows, spectrumChart, spectrumSample, reportText } from '../../../plugins/analysis/ui/src/report.ts'
 
 test('true peak report exposes named measurements with units and bounded decimals', () => {
   assert.deepEqual(measurementRows('pymss.analysis.measure_true_peak', {
@@ -42,4 +42,22 @@ test('spectrum chart handles flat signals and bounds points while retaining narr
     { freqs: [0, 1], magnitudes_db: [0, Infinity] },
     { freqs: [0, 1], magnitudes_db: [0, 'bad'] },
   ]) assert.equal(spectrumChart(value), null)
+})
+
+test('spectrum inspection selects a real nearest bin including endpoints and ties', () => {
+  const chart = spectrumChart({ freqs: [0, 10, 30], magnitudes_db: [-90, -20.125, -40] })
+  assert.deepEqual(spectrumSample(chart, 12), { frequency: 10, magnitudeDb: -20.125 })
+  assert.deepEqual(spectrumSample(chart, 20), { frequency: 10, magnitudeDb: -20.125 })
+  assert.deepEqual(spectrumSample(chart, 26), { frequency: 30, magnitudeDb: -40 })
+  assert.deepEqual(spectrumSample(chart, -1), { frequency: 0, magnitudeDb: -90 })
+  assert.deepEqual(spectrumSample(chart, 300), { frequency: 30, magnitudeDb: -40 })
+  assert.equal(spectrumSample(chart, NaN), null)
+})
+
+test('spectrum inspection retains the original bins when the plotted line is reduced', () => {
+  const frequencies = Array.from({ length: 10000 }, (_, index) => index)
+  const magnitudes = frequencies.map(index => index === 50 ? 0 : -100)
+  const chart = spectrumChart({ freqs: frequencies, magnitudes_db: magnitudes })
+  assert.deepEqual(spectrumSample(chart, 50), { frequency: 50, magnitudeDb: 0 })
+  assert.deepEqual(spectrumSample(chart, 51), { frequency: 51, magnitudeDb: -100 })
 })

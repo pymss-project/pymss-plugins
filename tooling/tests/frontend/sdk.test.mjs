@@ -10,7 +10,7 @@ const code = ts.transpileModule(source.statements.filter(statement => !ts.isImpo
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText
 
-async function host(t, saved = {}) {
+async function host(t, saved = {}, timers = { setTimeout, clearTimeout }) {
   const scope = effectScope()
   t.after(() => scope.stop())
   const exports = {}, calls = [], callbacks = {}
@@ -35,23 +35,24 @@ async function host(t, saved = {}) {
       receive({ jsonrpc: '2.0', id: request.id, result })
     })
   } }
-  const window = { parent, addEventListener(name, callback) { callbacks[name] = callback } }
+  const window = { parent, innerWidth: 946, innerHeight: 350,
+    addEventListener(name, callback) { callbacks[name] = callback }, removeEventListener(name) { delete callbacks[name] } }
   const properties = new Map(), classes = new Set()
   const document = { documentElement: {
     style: { setProperty: (key, value) => properties.set(key, value), removeProperty: key => properties.delete(key) },
     classList: { toggle: (key, enabled) => enabled ? classes.add(key) : classes.delete(key) },
   } }
   scope.run(() => vm.runInNewContext(code, {
-    exports, window, document, structuredClone, ref, watch, setTimeout, clearTimeout,
-    presentation: {}, useSettingsStore: () => ({}), __FILE_TOOL__: 'slicer', __OPERATION_ID__: 'pymss.slicer.tool',
+    exports, window, document, structuredClone, ref, watch, ...timers,
+    presentation: {}, refreshToolLayout() {}, useSettingsStore: () => ({}), __FILE_TOOL__: 'slicer', __OPERATION_ID__: 'pymss.slicer.tool',
     __STUDIO_REQUIREMENTS__: requirements,
   }))
   await exports.connect()
-  return { sdk: exports, calls, scope, receive, properties, classes }
+  return { sdk: exports, calls, scope, receive, properties, classes, window, resize: () => callbacks.resize() }
 }
 
 test('log overlays anchor the form without retaining stale or invalid layout coordinates', async t => {
-  const { receive, properties, classes } = await host(t)
+  const { receive, properties, classes, window, resize } = await host(t)
   const send = params => receive({ jsonrpc: '2.0', method: 'host.overlay', params })
   send({ open: true, bounds: { left: 304, top: -30, width: 910 } })
   assert.equal(classes.has('tool-overlay-anchored'), true)
@@ -62,8 +63,100 @@ test('log overlays anchor the form without retaining stale or invalid layout coo
   assert.equal(properties.size, 0)
   send({ open: true, bounds: { left: 0, top: 0, width: 640 } })
   send({ open: false })
+  window.innerWidth = 640
+  resize()
   assert.equal(classes.size, 0)
   assert.equal(properties.size, 0)
+})
+
+test('log overlays wait for the promoted viewport and keep the form anchored until it returns', async t => {
+  const { sdk, receive, calls, window, resize, classes, properties } = await host(t)
+  let opened = false
+  const opening = sdk.openToolOverlay().then(() => { opened = true })
+  const generation = calls.at(-1).params.generation
+  receive({ jsonrpc: '2.0', method: 'host.overlay', params: {
+    open: true, prepare: true, generation,
+    bounds: { left: 302, top: 156, width: 946 }, viewport: { width: 1280, height: 900 },
+  } })
+  await Promise.resolve()
+  assert.equal(opened, false)
+  assert.equal(classes.has('tool-overlay-anchored'), false)
+  assert.equal(calls.at(-1).params.prepared, generation)
+  window.innerWidth = 1280
+  window.innerHeight = 900
+  resize()
+  await opening
+  assert.equal(opened, true)
+  assert.equal(properties.get('--tool-overlay-left'), '302px')
+  sdk.closeToolOverlay()
+  receive({ jsonrpc: '2.0', method: 'host.overlay', params: { open: false } })
+  assert.equal(classes.has('tool-overlay-anchored'), true)
+  window.innerWidth = 946
+  window.innerHeight = 350
+  resize()
+  assert.equal(classes.size, 0)
+  assert.equal(properties.size, 0)
+})
+
+test('a cancelled overlay ignores its late preparation and legacy hosts still open logs', async t => {
+  const { sdk, receive, calls, classes } = await host(t)
+  const first = sdk.openToolOverlay()
+  const generation = calls.at(-1).params.generation
+  sdk.closeToolOverlay()
+  await first
+  receive({ jsonrpc: '2.0', method: 'host.overlay', params: {
+    open: true, prepare: true, generation, bounds: { left: 302, top: 156, width: 946 }, viewport: { width: 1280, height: 900 },
+  } })
+  assert.equal(classes.size, 0)
+  const second = sdk.openToolOverlay()
+  receive({ jsonrpc: '2.0', method: 'host.overlay', params: { open: true, bounds: { left: 302, top: 156, width: 946 } } })
+  await second
+  assert.equal(classes.has('tool-overlay-anchored'), true)
+  sdk.closeToolOverlay()
+})
+
+test('an unresponsive overlay handshake clears its timer and restores the tool', async t => {
+  const timers = new Map()
+  let sequence = 0
+  const { sdk, classes, calls } = await host(t, {}, {
+    setTimeout: callback => { timers.set(++sequence, callback); return sequence },
+    clearTimeout: id => timers.delete(id),
+  })
+  assert.equal(timers.size, 0)
+  const opening = sdk.openToolOverlay()
+  const failed = assert.rejects(opening, /Studio did not respond/)
+  assert.equal(timers.size, 1)
+  timers.values().next().value()
+  await failed
+  assert.equal(timers.size, 0)
+  assert.equal(classes.size, 0)
+  assert.equal(calls.at(-1).params.open, false)
+})
+
+test('closing after a window resize restores a different inline size for synchronized and legacy hosts', async t => {
+  for (const synchronized of [true, false]) {
+    const { sdk, receive, calls, window, resize, classes } = await host(t)
+    const opening = sdk.openToolOverlay()
+    window.innerWidth = 1280
+    window.innerHeight = 900
+    receive({ jsonrpc: '2.0', method: 'host.overlay', params: { open: true,
+      ...(synchronized ? { prepare: true, generation: calls.at(-1).params.generation, viewport: { width: 1280, height: 900 } } : {}),
+      bounds: { left: 302, top: 156, width: 946 },
+    } })
+    await opening
+    window.innerWidth = 1100
+    window.innerHeight = 800
+    receive({ jsonrpc: '2.0', method: 'host.overlay', params: { open: true,
+      ...(synchronized ? { viewport: { width: 1100, height: 800 } } : {}),
+      bounds: { left: 302, top: 156, width: 766 },
+    } })
+    sdk.closeToolOverlay()
+    assert.equal(classes.has('tool-overlay-anchored'), true)
+    window.innerWidth = 766
+    window.innerHeight = 430
+    resize()
+    assert.equal(classes.size, 0)
+  }
 })
 
 test('SDK transports reactive nested inputs as public JSON values', async t => {
