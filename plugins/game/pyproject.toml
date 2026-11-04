@@ -1,6 +1,6 @@
 [project]
 name = "pymss-plugin-game"
-version = "1.2.0"
+version = "1.2.1"
 description = "pymss plugin: OpenVPI GAME vocal to MIDI transcription"
 requires-python = ">=3.10"
 dependencies = [

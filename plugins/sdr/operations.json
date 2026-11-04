@@ -25,6 +25,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.sdr",
-  "pluginVersion": "0.2.0",
-  "sourceDigest": "ee16e6e674cfa0a65aa24e41fde0b9af151ea94680714f298283981e82c39b8a"
+  "pluginVersion": "0.2.1",
+  "sourceDigest": "dcadc93888da9031b9dff8c4e52be8676f9133000ccb502dca6dd146fde4bb99"
 }

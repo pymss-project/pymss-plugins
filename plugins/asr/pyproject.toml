@@ -1,6 +1,6 @@
 [project]
 name = "pymss-plugin-asr"
-version = "0.3.0"
+version = "0.3.1"
 description = "pymss plugin: speech-to-text transcription (FunASR on CUDA/CPU, funasr-mlx on Apple Silicon)"
 requires-python = ">=3.10"
 # Backend packages are platform-conditional: MLX only ships macOS arm64 wheels,

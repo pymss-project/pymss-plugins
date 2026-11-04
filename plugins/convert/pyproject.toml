@@ -1,6 +1,6 @@
 [project]
 name = "pymss-plugin-convert"
-version = "0.2.0"
+version = "0.2.1"
 description = "Batch audio format conversion for pymss Studio"
 requires-python = ">=3.10"
 dependencies = []

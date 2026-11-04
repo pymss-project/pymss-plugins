@@ -1,6 +1,6 @@
 [project]
 name = "pymss-plugin-analysis"
-version = "0.2.0"
+version = "0.2.1"
 description = "pymss plugin: audio analysis and measurement (LUFS, true peak, RMS, DR, spectrum)"
 requires-python = ">=3.10"
 dependencies = ["pyloudnorm", "scipy"]

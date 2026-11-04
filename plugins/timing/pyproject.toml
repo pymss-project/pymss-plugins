@@ -1,6 +1,6 @@
 [project]
 name = "pymss-plugin-timing"
-version = "0.3.2"
+version = "0.3.3"
 description = "pymss plugin: pitch and speed processing with Radius or Rubber Band R3"
 requires-python = ">=3.10"
 dependencies = ["numpy", "soundfile"]

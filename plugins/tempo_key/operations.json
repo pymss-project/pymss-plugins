@@ -3,6 +3,6 @@
   "operations": [],
   "pluginApiVersion": 2,
   "pluginId": "pymss.tempo_key",
-  "pluginVersion": "0.2.0",
-  "sourceDigest": "f996c86f1895fbce32ccef47c2566109c40f9464d738639662d2e097d984e810"
+  "pluginVersion": "0.2.1",
+  "sourceDigest": "f1591cdb112994a9b7705f702021bc58757be7b71859cb29260c846f720432a6"
 }

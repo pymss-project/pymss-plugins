@@ -118,6 +118,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.dynamics",
-  "pluginVersion": "0.2.0",
-  "sourceDigest": "5ecc7f80eb7fb32d258f9c198e48bfaea504868f151e981135f1e1f189b8857f"
+  "pluginVersion": "0.2.1",
+  "sourceDigest": "ef6744baccf66e5813b0a3682506f0ac82b54f52f48b0b88ac18d54532d110d0"
 }

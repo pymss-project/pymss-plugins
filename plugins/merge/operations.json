@@ -25,6 +25,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.merge",
-  "pluginVersion": "0.2.0",
-  "sourceDigest": "9b998bfd9f1df401330963d5e982483bd0a7dce676460b4b70a12a7013767f96"
+  "pluginVersion": "0.2.1",
+  "sourceDigest": "ad36acf807b695d52b4477c969426022ec7f49e0dfdfd917c227cecd9c046c69"
 }

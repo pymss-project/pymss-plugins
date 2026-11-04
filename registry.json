@@ -6,7 +6,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/analysis",
     "ref": "main",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "requires_pymss": ">=2.2",
     "operations": [
       "pymss.analysis.measure_lufs",
@@ -72,7 +72,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/asr",
     "ref": "main",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "requires_pymss": ">=2.2",
     "operations": [
       "pymss.asr.transcribe",
@@ -141,7 +141,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/convert",
     "ref": "main",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "requires_pymss": ">=2.2",
     "operations": [
       "pymss.convert.batch"
@@ -200,7 +200,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/dynamics",
     "ref": "main",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "requires_pymss": ">=2.2",
     "operations": [
       "pymss.dynamics.compressor",
@@ -264,7 +264,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/game",
     "ref": "main",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "requires_pymss": ">=2.2",
     "operations": [
       "pymss.game.vocal_to_midi",
@@ -332,7 +332,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/inspect",
     "ref": "main",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "requires_pymss": ">=2.2",
     "operations": [
       "pymss.inspect.tool"
@@ -387,7 +387,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/loudnorm",
     "ref": "main",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "requires_pymss": ">=2.2",
     "operations": [
       "pymss.loudnorm.normalize",
@@ -448,7 +448,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/merge",
     "ref": "main",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "requires_pymss": ">=2.2",
     "operations": [
       "pymss.merge.tool"
@@ -503,7 +503,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/sdr",
     "ref": "main",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "requires_pymss": ">=2.2",
     "operations": [
       "pymss.sdr.tool"
@@ -557,7 +557,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/slicer",
     "ref": "main",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "requires_pymss": ">=2.2",
     "operations": [
       "pymss.slicer.tool"
@@ -614,7 +614,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/spectral",
     "ref": "main",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "requires_pymss": ">=2.2",
     "operations": [
       "pymss.spectral.highpass",
@@ -678,7 +678,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/tempo_key",
     "ref": "main",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "requires_pymss": ">=2.2",
     "operations": [],
     "description": "Detect tempo and musical key for beat and tonal analysis.",
@@ -727,7 +727,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/timing",
     "ref": "main",
-    "version": "0.3.2",
+    "version": "0.3.3",
     "requires_pymss": ">=2.3.0",
     "operations": [
       "pymss.timing.process",

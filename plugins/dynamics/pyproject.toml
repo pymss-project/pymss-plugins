@@ -1,6 +1,6 @@
 [project]
 name = "pymss-plugin-dynamics"
-version = "0.2.0"
+version = "0.2.1"
 description = "pymss plugin: dynamics processing (pedalboard)"
 requires-python = ">=3.10"
 dependencies = ["pedalboard"]
