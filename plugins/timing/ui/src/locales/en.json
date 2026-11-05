@@ -34,8 +34,13 @@
   },
   "plugin": {
     "title": "Pitch and Time",
-    "algorithms": {"rubberband": "Rubber Band (excellent sound quality, faster)", "radius": "Radius (higher potential, slower)"},
-    "algorithmHint": "Rubber Band combines excellent sound quality with faster processing. Radius offers greater potential at a slower processing speed. Both support pitch and speed changes. Results depend on the material; compare by listening.",
+    "errors": {
+      "radiusGlibcUnsupported": "Bundled Radius requires glibc {required} or newer; this system has {current}. Set PYMSS_RADIUS to a compatible Radius executable.",
+      "radiusGlibcUnavailable": "Bundled Radius requires glibc {required} or newer, but the system glibc version could not be determined. Set PYMSS_RADIUS to a compatible Radius executable.",
+      "radiusRuntimeInvalid": "The bundled Radius runtime metadata is missing or invalid. Reinstall the Pitch and Time plugin."
+    },
+    "algorithms": {"rubberband": "Rubber Band (excellent sound quality, faster)", "radius": "Radius - radix2 (highest potential, slowest)", "radius_rustfft": "Radius - rustfft (higher potential, slower)"},
+    "algorithmHint": "Radius radix2 aligns with AU; rustfft processes faster but is not reference-exact. Rubber Band is faster. All three options support pitch and speed changes; compare results with your material.",
     "durationHint": "100% keeps the duration; 50% halves it (faster), and 200% doubles it (slower).",
     "operations": {
       "pitch_shift": "Pitch shift",

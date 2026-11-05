@@ -44,7 +44,7 @@ class TimingFileOperationTests(unittest.TestCase):
     def test_plugin_publishes_named_audio_in_the_selected_directory(self):
         output_dir = self.root / "输出目录"
         original = self.source.read_bytes()
-        for algorithm in ["rubberband", "radius"]:
+        for algorithm in ["rubberband", "radius", "radius_rustfft"]:
             with self.subTest(algorithm=algorithm):
                 result = self.run_file(algorithm, output_dir)
                 self.assertIsInstance(result, FileArtifact)
@@ -150,7 +150,7 @@ class TimingFileOperationTests(unittest.TestCase):
             self.skipTest("FFmpeg is required for Radius file I/O")
         tone = (0.1 * np.sin(2 * np.pi * 440 * np.arange(48000) / 48000)).astype(np.float32)
         sf.write(self.source, np.stack([tone, tone * 0.5], axis=1), 48000, subtype="FLOAT")
-        for algorithm in ["radius", "rubberband"]:
+        for algorithm in ["radius", "radius_rustfft", "rubberband"]:
             with self.subTest(algorithm=algorithm):
                 updates = []
                 context = OperationContext(workdir=str(self.root / "native outputs"),

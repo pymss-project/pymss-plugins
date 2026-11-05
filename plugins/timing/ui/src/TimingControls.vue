@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 defineProps<{ params: Record<string, unknown>; errors: Record<string, string>; disabled: boolean }>()
 const { t } = useI18n()
-const algorithms = computed(() => ['rubberband', 'radius'].map(value => ({ value, label: t(`plugin.algorithms.${value}`) })))
+const algorithms = computed(() => ['rubberband', 'radius', 'radius_rustfft'].map(value => ({ value, label: t(`plugin.algorithms.${value}`) })))
 </script>
 
 <template>

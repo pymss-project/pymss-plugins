@@ -28,13 +28,19 @@ RELEASES = {
         {"rubberband": "rubberband", "COPYING": "COPYING", "README.md": "README.md", "CHANGELOG": "CHANGELOG"},
     ),
 }
-RADIUS_VERSION = "0.2.0"
-RADIUS_COMMIT = "c987c1a8d62b2ab46959483bb6e8abe04a8e2ace"
+RADIUS_VERSION = "0.3.1"
+RADIUS_PACKAGE_VERSION = "0.3.0"
+RADIUS_COMMIT = "696dba8acb900a87897e42e9b2d0ea4c4521bfb1"
 RADIUS_RELEASES = {
-    "win32-x86_64": ("radius-0.2.0-windows-x64.exe", "5fc83ddf471444119695b389551dac635829a3663a4a9ab36d68d0c5bd121f9f"),
-    "darwin-arm64": ("radius-0.2.0-macOS-arm64", "dcecc4f6b02a2bfa68f829c274fc77004bf9e531743f5558eac1e21013eacf3d"),
+    "win32-x86_64": ("radius-0.3.1-windows-x64.exe", "14ba8605aa85dda8fe8a03e183550ca9abbc2a2e94e47a207009383631f04e5d"),
+    "darwin-arm64": ("radius-0.3.1-macOS-arm64", "579467e22f78762b189f857a01d6e958171ddcf94497b2725c14819eab206c57"),
+    "linux-x86_64": ("radius-0.3.1-linux-x64", "67bd00fce23b916903cd192da4e78566435a3602d95108c4f6e5dd2ba48a1df3"),
 }
 RADIUS_TARGETS = set(RADIUS_RELEASES)
+RADIUS_REQUIREMENTS = {
+    "win32-x86_64": {"cpuFeatures": ["avx", "fma"]},
+    "linux-x86_64": {"cpuFeatures": ["avx", "fma"], "glibc": ">=2.34"},
+}
 
 
 def prepare(target: str, output: Path, *, archive: Path | None = None) -> Path:
@@ -124,10 +130,12 @@ def prepare_radius(target: str, output: Path, *, binary: Path | None = None) -> 
         shutil.copyfile(package / "licenses/COPYING.GPL3", stage / "COPYING.GPL3")
         shutil.copyfile(package / "RADIUS-NOTICE.md", stage / "RADIUS-NOTICE.md")
         (stage / "runtime.json").write_text(json.dumps({
-            "version": RADIUS_VERSION, "target": target, "asset": asset, "sha256": checksum,
+            "version": RADIUS_VERSION, "packageVersion": RADIUS_PACKAGE_VERSION,
+            "target": target, "asset": asset, "sha256": checksum,
             "license": "LGPL-3.0-or-later", "sourceCommit": RADIUS_COMMIT,
             "source": f"https://github.com/SUC-DriverOld/radius-rs/tree/{RADIUS_COMMIT}",
             "sourceArchive": f"https://github.com/SUC-DriverOld/radius-rs/archive/{RADIUS_COMMIT}.tar.gz",
+            **({"requirements": RADIUS_REQUIREMENTS[target]} if target in RADIUS_REQUIREMENTS else {}),
         }, indent=2) + "\n", encoding="utf-8")
         destination.parent.mkdir(parents=True, exist_ok=True)
         os.rename(stage, destination)
@@ -141,7 +149,7 @@ def main(argv=None) -> int:
     parser.add_argument("--target", default=target)
     parser.add_argument("--engine", choices=["all", "rubberband", "radius"], default="all")
     parser.add_argument("--archive", type=Path, help="Use a previously downloaded official archive (SHA256 is still checked)")
-    parser.add_argument("--radius-binary", type=Path, help="Use the pinned Radius 0.2.0 CLI executable (SHA256 is checked)")
+    parser.add_argument("--radius-binary", type=Path, help="Use the pinned Radius 0.3.1 release executable (SHA256 is checked)")
     parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[1] / "bin")
     args = parser.parse_args(argv)
     if (args.engine == "radius" or args.engine == "all" and args.target in RADIUS_TARGETS) and args.radius_binary is None:

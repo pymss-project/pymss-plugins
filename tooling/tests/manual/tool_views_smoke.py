@@ -30,8 +30,12 @@ HOST = """({specs,url,dark}) => {
   }else if(data.method==='pymss.resize'){if(!state.overlay)frame.style.height=data.params.height+'px'}
   else if(data.method==='pymss.overlay'){
     state.overlay=data.params.open;
-    if(state.overlay){state.previousStyle=frame.style.cssText;frame.style.cssText='position:fixed;inset:0;z-index:3000;border:0;width:100vw;height:100vh'}
-    else if(state.previousStyle)frame.style.cssText=state.previousStyle;
+    if(state.overlay){
+      const rect=frame.getBoundingClientRect();state.previousStyle=frame.style.cssText;
+      frame.style.cssText='position:fixed;inset:0;z-index:3000;border:0;width:100vw;height:100vh';
+      notify('host.overlay',{open:true,bounds:{left:rect.left,top:rect.top,width:rect.width},
+        viewport:{width:window.innerWidth,height:window.innerHeight}});
+    }else if(state.previousStyle){frame.style.cssText=state.previousStyle;notify('host.overlay',{open:false})}
   }
   else if(data.method==='app.info')reply(data.id,{...sdk,locale:'zh-CN',defaultOutputDir:'/output'});
   else if(data.method==='settings.read')reply(data.id,state.settings);

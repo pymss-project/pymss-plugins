@@ -21,7 +21,8 @@
             "default": "rubberband",
             "enum": [
               "rubberband",
-              "radius"
+              "radius",
+              "radius_rustfft"
             ],
             "type": "string"
           },
@@ -63,7 +64,8 @@
             "default": "rubberband",
             "enum": [
               "rubberband",
-              "radius"
+              "radius",
+              "radius_rustfft"
             ],
             "type": "string"
           },
@@ -111,7 +113,8 @@
             "default": "rubberband",
             "enum": [
               "rubberband",
-              "radius"
+              "radius",
+              "radius_rustfft"
             ],
             "type": "string"
           },
@@ -169,6 +172,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.timing",
-  "pluginVersion": "0.3.3",
-  "sourceDigest": "738c759d845c9a3dd8cd528fd7bed17f684f8ff9948f05e490aa21a3c4fc89e8"
+  "pluginVersion": "0.4.0",
+  "sourceDigest": "0c9a437c842f3e54c44c68fb8adc30b6c2b1a65ee18f128b914f91d37e458117"
 }

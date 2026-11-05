@@ -13,7 +13,7 @@ import { operationDescriptions } from './operationDescriptions'
 type Port = { type?: string }
 type Description = { id: string; inputs: Record<string, Port>; params: OperationSchema; outputs: Record<string, Port>; specDigest?: string }
 type Output = { kind?: string; path?: string; value?: unknown; mediaType?: string }
-const props = defineProps<{ config: { titleKey: string; descriptionKey?: string; operations: Array<{ id: string; titleKey: string; inputs?: string[] }>; layout?: 'split' | 'stacked'; outputDirectory?: boolean } }>()
+const props = defineProps<{ config: { titleKey: string; descriptionKey?: string; operations: Array<{ id: string; titleKey: string; inputs?: string[] }>; layout?: 'split' | 'stacked'; outputDirectory?: boolean }; formatError?: (failure: unknown) => string }>()
 const { t, te } = useI18n()
 const settings = useSettingsStore()
 const outputDir = toolRef('outputDir', settings.outputDir)
@@ -117,7 +117,7 @@ async function run() {
   } catch (failure) {
     if (disposed) return
     const item = failure as Error & { code?: string }
-    cancelled.value = item.code === 'TASK_CANCELLED'; error.value = cancelled.value ? '' : item.message
+    cancelled.value = item.code === 'TASK_CANCELLED'; error.value = cancelled.value ? '' : props.formatError ? props.formatError(failure) : item.message
     if (item.code === 'OPERATION_SPEC_CHANGED') {
       descriptions.invalidate(snapshot.operation)
       forcedDescriptions.add(snapshot.operation)

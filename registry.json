@@ -727,7 +727,7 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/timing",
     "ref": "main",
-    "version": "0.3.3",
+    "version": "0.4.0",
     "requires_pymss": ">=2.3.0",
     "operations": [
       "pymss.timing.process",

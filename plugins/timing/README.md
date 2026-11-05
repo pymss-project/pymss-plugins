@@ -48,8 +48,9 @@ for composition in workflows.
 
 ## Packaged native programs
 
-The repository includes Radius 0.2.0 and Rubber Band 4.0.0 CLI programs for
-Windows x86_64 and macOS arm64. Catalog source installs include these files;
+The repository includes Radius release 0.3.1 and Rubber Band 4.0.0 CLI programs for
+Windows x86_64 and macOS arm64. Radius is also packaged for Linux x86_64.
+Catalog source installs include these files;
 no compiler, separate Radius installation or native build workflow is required.
 Windows also includes the upstream `sndfile.dll` dependency for Rubber Band.
 The programs are located under `bin/<platform-arch>/<engine>/` with their
@@ -63,16 +64,23 @@ or that environment variable. Users do not need to set the I/O backend flag.
 
 An explicit `PYMSS_RADIUS` or `PYMSS_RUBBERBAND` override takes precedence over
 the packaged program. A missing or unusable selected engine reports its error
-without substituting the other algorithm. Linux and macOS x86_64 users currently
-need a compatible system runtime; no bundled Radius program is supplied there.
+without substituting the other algorithm. The official Linux Radius executable
+requires glibc 2.34 or newer; older systems need a compatible upstream build
+selected with `PYMSS_RADIUS`. The x86_64 builds require AVX and FMA.
+Before launching bundled Linux Radius, the adapter checks the glibc requirement
+in its runtime manifest. An older or undetectable glibc version reports a clear
+error without selecting another executable. Explicit `PYMSS_RADIUS` overrides
+and system programs found on PATH are not checked against bundled requirements.
+Linux Rubber Band and macOS x86_64 still need compatible system runtimes.
 Downloaded macOS programs remain subject to the system's execution policy.
 
 Maintainers update the upstream source and CLI release separately from this
 repository. For each supported target, download the pinned Radius CLI and run:
 
 ```sh
-python plugins/timing/scripts/prepare_runtime.py --target win32-x86_64 --radius-binary /path/to/radius-0.2.0-windows-x64.exe
-python plugins/timing/scripts/prepare_runtime.py --target darwin-arm64 --radius-binary /path/to/radius-0.2.0-macOS-arm64
+python plugins/timing/scripts/prepare_runtime.py --target win32-x86_64 --radius-binary /path/to/radius-0.3.1-windows-x64.exe
+python plugins/timing/scripts/prepare_runtime.py --target darwin-arm64 --radius-binary /path/to/radius-0.3.1-macOS-arm64
+python plugins/timing/scripts/prepare_runtime.py --engine radius --target linux-x86_64 --radius-binary /path/to/radius-0.3.1-linux-x64
 ```
 
 The script checks the Radius and Rubber Band release SHA256 values, preserves
@@ -81,13 +89,17 @@ previously downloaded Rubber Band archive; `--engine radius` or
 `--engine rubberband` prepares one engine. To replace an existing release,
 prepare into a separate `--output` directory, verify it, then replace the tracked
 runtime files and update the plugin version and operation metadata. Preserve
-Git executable mode `100755` on both macOS programs when committing from Windows.
+Git executable mode `100755` on macOS and Linux programs when committing from Windows.
 Native files are marked `-text` in `.gitattributes` to preserve their bytes.
 
-Radius 0.2.0 is LGPL-3.0-or-later; Rubber Band retains its upstream license.
+Radius release 0.3.1 is LGPL-3.0-or-later; Rubber Band retains its upstream license.
 Their licenses do not change the adapter's MIT license. See
 [RADIUS-NOTICE.md](RADIUS-NOTICE.md) and [RUBBERBAND-NOTICE.md](RUBBERBAND-NOTICE.md)
 for provenance, source locations and third-party distribution notices.
+
+The upstream v0.3.1 source still declares package version 0.3.0, so its CLI
+reports `radius 0.3.0`. The packaged release is identified by its official
+v0.3.1 asset, SHA256 and source commit; `runtime.json` records both versions.
 
 Radius uses a phase vocoder and Rubber Band uses its R3 engine. Processing
 speed and the resulting sound depend on the source material.
@@ -107,9 +119,16 @@ so older graphs default to Rubber Band. The time-stretch node remains unchanged.
 ```python
 from pymss.plugins import require_capability
 out = require_capability("pitch_shift")(audio, 44100, n_steps=2)      # up a tone
-out = require_capability("pitch_shift")(audio, 44100, n_steps=2, algorithm="radius")
+out = require_capability("pitch_shift")(audio, 44100, n_steps=2, algorithm="radius")  # radix2
+out = require_capability("pitch_shift")(audio, 44100, n_steps=2, algorithm="radius_rustfft")
 out = require_capability("time_stretch")(audio, 44100, rate=1.5)      # 1.5x faster
 ```
+
+`algorithm="radius"` preserves the existing Radius choice and explicitly passes
+`--fft radix2`. `algorithm="radius_rustfft"` selects the faster FFT backend with
+`--fft rustfft`. The VC output from rustfft is not reference-exact; compare results
+with the input material. Rubber Band remains the default for existing workflows.
+External Radius overrides must support the v0.3.0 `--fft` option.
 
 The unified Operation is `pymss.timing.process`, with parameters `algorithm`,
 `n_steps` and `duration_percent` (100 preserves the original duration). Older pitch-only and

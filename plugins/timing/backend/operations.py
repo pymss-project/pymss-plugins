@@ -21,22 +21,24 @@ from .rubberband import pitch_shift as _rubberband_pitch_shift, time_stretch, _n
 def pitch_shift(audio, sample_rate, n_steps: float, bins_per_octave: int = 12, algorithm: str = "rubberband"):
     if algorithm == "rubberband":
         return _rubberband_pitch_shift(audio, sample_rate, n_steps, bins_per_octave)
-    if algorithm == "radius":
+    if algorithm in {"radius", "radius_rustfft"}:
         from .radius import pitch_shift as radius_pitch_shift
 
-        return radius_pitch_shift(audio, sample_rate, n_steps, bins_per_octave)
-    raise ValueError("algorithm must be rubberband or radius")
+        return radius_pitch_shift(audio, sample_rate, n_steps, bins_per_octave,
+                                  fft="rustfft" if algorithm == "radius_rustfft" else "radix2")
+    raise ValueError("algorithm must be rubberband, radius or radius_rustfft")
 
 
 def process(audio, sample_rate, n_steps: float = 0, duration_percent: float = 100, algorithm: str = "rubberband"):
     steps = _number(n_steps, "n_steps", -24, 24)
     duration = _number(duration_percent, "duration_percent", 25, 400)
-    if algorithm == "radius":
+    if algorithm in {"radius", "radius_rustfft"}:
         from .radius import process as radius_process
 
-        return radius_process(audio, sample_rate, steps, duration)
+        return radius_process(audio, sample_rate, steps, duration,
+                              fft="rustfft" if algorithm == "radius_rustfft" else "radix2")
     if algorithm != "rubberband":
-        raise ValueError("algorithm must be rubberband or radius")
+        raise ValueError("algorithm must be rubberband, radius or radius_rustfft")
     from .rubberband import process as rubberband_process
 
     return rubberband_process(audio, sample_rate, pitch=2 ** (steps / 12), rate=100 / duration)
@@ -44,7 +46,7 @@ def process(audio, sample_rate, n_steps: float = 0, duration_percent: float = 10
 
 def _process_parameters():
     return {"type": "object", "properties": {
-        "algorithm": {"type": "string", "default": "rubberband", "enum": ["rubberband", "radius"]},
+        "algorithm": {"type": "string", "default": "rubberband", "enum": ["rubberband", "radius", "radius_rustfft"]},
         "n_steps": {"type": "number", "default": 0.0, "minimum": -24.0, "maximum": 24.0},
         "duration_percent": {"type": "number", "default": 100.0, "minimum": 25.0, "maximum": 400.0},
     }, "required": ["algorithm", "n_steps", "duration_percent"], "additionalProperties": False}
@@ -134,7 +136,7 @@ def setup(plugin):
         params={"type": "object", "properties": {
             "n_steps": {"type": "number", "default": 0.0, "minimum": -24.0, "maximum": 24.0},
             "bins_per_octave": {"type": "integer", "default": 12, "minimum": 1, "maximum": 36},
-            "algorithm": {"type": "string", "default": "rubberband", "enum": ["rubberband", "radius"]},
+            "algorithm": {"type": "string", "default": "rubberband", "enum": ["rubberband", "radius", "radius_rustfft"]},
         }, "additionalProperties": False},
         outputs={"audio": {"type": "audio"}},
         run=_wrap(pitch_shift, {"n_steps", "bins_per_octave", "algorithm"}),

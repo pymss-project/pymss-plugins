@@ -50,7 +50,7 @@ class TimingAlgorithmTests(unittest.TestCase):
         for duration, rate in [(50, 2), (100, 1), (200, 0.5)]:
             with self.subTest(duration=duration), patch.object(radius, "process") as native, patch.object(rubberband, "process") as other:
                 operations.process([0.1], 48000, 3, duration, "radius")
-                native.assert_called_once_with([0.1], 48000, 3, duration)
+                native.assert_called_once_with([0.1], 48000, 3, duration, fft="radix2")
                 other.assert_not_called()
                 operations.process([0.1], 48000, 3, duration, "rubberband")
                 other.assert_called_once_with([0.1], 48000, pitch=2 ** (3 / 12), rate=rate)
@@ -58,7 +58,7 @@ class TimingAlgorithmTests(unittest.TestCase):
     def test_radius_duration_routes_to_the_selected_engine(self):
         with patch.object(radius, "process") as native, patch.object(operations, "_rubberband_pitch_shift") as other:
             operations.process([0.1], 48000, n_steps=3, duration_percent=140, algorithm="radius")
-            native.assert_called_once_with([0.1], 48000, 3, 140)
+            native.assert_called_once_with([0.1], 48000, 3, 140, fft="radix2")
             other.assert_not_called()
 
     def test_radius_passes_duration_directly_and_rounds_final_frames(self):
@@ -101,7 +101,7 @@ class TimingAlgorithmTests(unittest.TestCase):
             rad.assert_not_called()
             rubber.reset_mock()
             operations.pitch_shift(audio, 48000, 3, 24, "radius")
-            rad.assert_called_once_with(audio, 48000, 3, 24)
+            rad.assert_called_once_with(audio, 48000, 3, 24, fft="radix2")
             rubber.assert_not_called()
             with self.assertRaisesRegex(ValueError, "algorithm"):
                 operations.pitch_shift(audio, 48000, 3, algorithm="unknown")
@@ -113,6 +113,29 @@ class TimingAlgorithmTests(unittest.TestCase):
             self.assertEqual(raised.exception.code, "TIMING_RADIUS_MISSING")
             rubber.assert_not_called()
 
+    def test_rustfft_selection_routes_both_operations_to_the_requested_backend(self):
+        with patch.object(radius, "process") as native, patch.object(radius, "pitch_shift") as pitch:
+            operations.process([0.1], 48000, 3, 140, "radius_rustfft")
+            native.assert_called_once_with([0.1], 48000, 3, 140, fft="rustfft")
+            operations.pitch_shift([0.1], 48000, 3, 24, "radius_rustfft")
+            pitch.assert_called_once_with([0.1], 48000, 3, 24, fft="rustfft")
+
+    def test_fft_backend_is_passed_to_cli_and_invalid_values_never_start_it(self):
+        import soundfile as sf
+
+        for fft in ["radix2", "rustfft"]:
+            def render(argv, *, cwd, **options):
+                self.assertEqual(argv[argv.index("--fft") + 1], fft)
+                sf.write(cwd / "output.wav", np.zeros((4096, 1), dtype=np.float32), 48000, subtype="FLOAT")
+
+            with self.subTest(fft=fft), patch.object(radius, "executable", return_value=Path("radius.exe")), \
+                    patch.object(radius, "_run", side_effect=render):
+                radius.process(np.zeros(4096, dtype=np.float32), 48000, 3, fft=fft)
+        with patch.object(radius, "executable") as native:
+            with self.assertRaisesRegex(ValueError, "fft"):
+                radius.process([0.1], 48000, fft="unknown")
+            native.assert_not_called()
+
     def test_stretch_schema_offers_no_radius_selector(self):
         runtime = create_runtime()
         runtime.load_plugins([ROOT / "plugins"])
@@ -120,6 +143,9 @@ class TimingAlgorithmTests(unittest.TestCase):
         self.assertNotIn("algorithm", spec["params"]["properties"])
         pitch = runtime.describe_operation("pymss.timing.pitch_shift")
         self.assertEqual(pitch["params"]["properties"]["algorithm"]["default"], "rubberband")
+        for operation in ["pymss.timing.pitch_shift", "pymss.timing.process", "pymss.timing.process_file"]:
+            self.assertEqual(runtime.describe_operation(operation)["params"]["properties"]["algorithm"]["enum"],
+                             ["rubberband", "radius", "radius_rustfft"])
         with self.assertRaises(OperationError):
             runtime.run("pymss.timing.time_stretch", inputs={"audio": AudioArtifact(np.ones((1, 8), dtype=np.float32), 48000)},
                         params={"rate": 2, "algorithm": "radius"})
@@ -140,14 +166,16 @@ class TimingInstalledRuntimeTests(unittest.TestCase):
             runtime = create_runtime()
             runtime.load_plugins([installed.path.parent])
             package = runtime._operations["pymss.timing.process"].run.__globals__["__package__"]
-            for engine in ["radius", "rubberband"]:
+            bundled = [engine for engine in ["radius", "rubberband"]
+                       if (ROOT / "plugins/timing/bin" / target / engine).is_dir()]
+            for engine in bundled:
                 backend = importlib.import_module(package + "." + engine)
                 self.assertTrue(backend.executable().is_relative_to(installed.path))
             for sr in [16000, 44100, 48000, 96000]:
                 frames = sr // 4
                 wave = (0.1 * np.sin(2 * np.pi * 440 * np.arange(frames) / sr)).astype(np.float32)
                 source = AudioArtifact(np.stack([wave, wave * 0.5]), sr)
-                for engine in ["radius", "rubberband"]:
+                for engine in ["radius", "radius_rustfft"] + (["rubberband"] if "rubberband" in bundled else []):
                     for duration in [50, 200]:
                         with self.subTest(engine=engine, sr=sr, duration=duration):
                             updates = []
@@ -184,7 +212,7 @@ class TimingDurationNativeTests(unittest.TestCase):
         frames = sr // 2
         wave = (0.1 * np.sin(2 * np.pi * 440 * np.arange(frames) / sr)).astype(np.float32)
         source = AudioArtifact(np.stack([wave, wave * 0.5]), sr)
-        for algorithm in ("radius", "rubberband"):
+        for algorithm in ("radius", "radius_rustfft", "rubberband"):
             for duration in (50, 100, 200):
                 with self.subTest(algorithm=algorithm, duration=duration):
                     result = self.runtime.run("pymss.timing.process", inputs={"audio": source},

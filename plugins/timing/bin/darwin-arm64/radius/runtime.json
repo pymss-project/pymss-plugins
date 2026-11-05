@@ -1,10 +1,11 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.1",
+  "packageVersion": "0.3.0",
   "target": "darwin-arm64",
-  "asset": "radius-0.2.0-macOS-arm64",
-  "sha256": "dcecc4f6b02a2bfa68f829c274fc77004bf9e531743f5558eac1e21013eacf3d",
+  "asset": "radius-0.3.1-macOS-arm64",
+  "sha256": "579467e22f78762b189f857a01d6e958171ddcf94497b2725c14819eab206c57",
   "license": "LGPL-3.0-or-later",
-  "sourceCommit": "c987c1a8d62b2ab46959483bb6e8abe04a8e2ace",
-  "source": "https://github.com/SUC-DriverOld/radius-rs/tree/c987c1a8d62b2ab46959483bb6e8abe04a8e2ace",
-  "sourceArchive": "https://github.com/SUC-DriverOld/radius-rs/archive/c987c1a8d62b2ab46959483bb6e8abe04a8e2ace.tar.gz"
+  "sourceCommit": "696dba8acb900a87897e42e9b2d0ea4c4521bfb1",
+  "source": "https://github.com/SUC-DriverOld/radius-rs/tree/696dba8acb900a87897e42e9b2d0ea4c4521bfb1",
+  "sourceArchive": "https://github.com/SUC-DriverOld/radius-rs/archive/696dba8acb900a87897e42e9b2d0ea4c4521bfb1.tar.gz"
 }

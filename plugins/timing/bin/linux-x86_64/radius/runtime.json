@@ -1,0 +1,18 @@
+{
+  "version": "0.3.1",
+  "packageVersion": "0.3.0",
+  "target": "linux-x86_64",
+  "asset": "radius-0.3.1-linux-x64",
+  "sha256": "67bd00fce23b916903cd192da4e78566435a3602d95108c4f6e5dd2ba48a1df3",
+  "license": "LGPL-3.0-or-later",
+  "sourceCommit": "696dba8acb900a87897e42e9b2d0ea4c4521bfb1",
+  "source": "https://github.com/SUC-DriverOld/radius-rs/tree/696dba8acb900a87897e42e9b2d0ea4c4521bfb1",
+  "sourceArchive": "https://github.com/SUC-DriverOld/radius-rs/archive/696dba8acb900a87897e42e9b2d0ea4c4521bfb1.tar.gz",
+  "requirements": {
+    "cpuFeatures": [
+      "avx",
+      "fma"
+    ],
+    "glibc": ">=2.34"
+  }
+}

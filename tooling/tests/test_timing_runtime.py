@@ -76,12 +76,13 @@ class TimingRuntimeTests(unittest.TestCase):
             metadata = json.loads((output / "runtime.json").read_text(encoding="utf-8"))
             self.assertEqual(metadata["sha256"], hashlib.sha256((output / "radius.exe").read_bytes()).hexdigest())
             self.assertEqual(metadata["license"], "LGPL-3.0-or-later")
-            self.assertEqual(metadata["version"], "0.2.0")
+            self.assertEqual(metadata["version"], "0.3.1")
+            self.assertEqual(metadata["packageVersion"], "0.3.0")
 
     def test_shipped_engines_have_matching_platform_manifests_and_binary_hashes(self):
         package = SCRIPT.parents[1]
-        for target in ["win32-x86_64", "darwin-arm64"]:
-            for engine in ["radius", "rubberband"]:
+        for target in ["win32-x86_64", "darwin-arm64", "linux-x86_64"]:
+            for engine in (["radius"] if target.startswith("linux-") else ["radius", "rubberband"]):
                 with self.subTest(target=target, engine=engine):
                     directory = package / "bin" / target / engine
                     manifest = json.loads((directory / "runtime.json").read_text(encoding="utf-8"))
@@ -91,6 +92,12 @@ class TimingRuntimeTests(unittest.TestCase):
                     self.assertEqual(hashlib.sha256(program.read_bytes()).hexdigest(), expected)
                     if engine == "radius":
                         self.assertEqual(manifest["sha256"], runtime.RADIUS_RELEASES[target][1])
+                        self.assertEqual(manifest["version"], runtime.RADIUS_VERSION)
+                        self.assertEqual(manifest["packageVersion"], runtime.RADIUS_PACKAGE_VERSION)
+                        self.assertEqual(manifest["sourceCommit"], runtime.RADIUS_COMMIT)
+                        if target.startswith("linux-"):
+                            self.assertTrue(program.read_bytes().startswith(b"\x7fELF\x02\x01"))
+                            self.assertEqual(manifest["requirements"]["glibc"], ">=2.34")
                     if target == "win32-x86_64" and engine == "rubberband":
                         self.assertTrue((directory / "sndfile.dll").is_file())
 

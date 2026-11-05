@@ -34,8 +34,13 @@
   },
   "plugin": {
     "title": "音高与速度",
-    "algorithms": {"rubberband": "Rubber Band（音质出色，速度更快）", "radius": "Radius（上限更高，速度较慢）"},
-    "algorithmHint": "Rubber Band 音质出色，速度更快；Radius 上限更高，速度较慢。两种算法均支持变调与变速，效果因素材而异，建议试听后选择。",
+    "errors": {
+      "radiusGlibcUnsupported": "内置 Radius 需要 glibc {required} 或更高版本，当前系统为 {current}。请通过 PYMSS_RADIUS 指定兼容的 Radius 可执行文件。",
+      "radiusGlibcUnavailable": "内置 Radius 需要 glibc {required} 或更高版本，但无法确定当前系统的 glibc 版本。请通过 PYMSS_RADIUS 指定兼容的 Radius 可执行文件。",
+      "radiusRuntimeInvalid": "内置 Radius 的运行时信息缺失或无效，请重新安装“音高与速度”插件。"
+    },
+    "algorithms": {"rubberband": "Rubber Band（音质出色，速度更快）", "radius": "Radius - radix2（上限最高，速度最慢）", "radius_rustfft": "Radius - rustfft（上限更高，速度较慢）"},
+    "algorithmHint": "Radius radix2 与 AU 对齐；rustfft 处理更快，但输出不与 AU 完全对齐。Rubber Band 速度更快。三种选项均支持变调与变速，建议根据素材试听后选择。",
     "durationHint": "100% 保持原时长，50% 为一半时长（加速），200% 为两倍时长（慢放）。",
     "operations": {
       "pitch_shift": "变调",
