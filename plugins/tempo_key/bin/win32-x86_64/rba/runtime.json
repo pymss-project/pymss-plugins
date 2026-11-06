@@ -1,0 +1,10 @@
+{
+  "version": "0.2.1",
+  "target": "win32-x86_64",
+  "asset": "rba-0.2.1-windows-x64.exe",
+  "sha256": "becd5cc18c8f24cd185afb26765149272712c7ea55626ed74187f6d2cdeaf183",
+  "license": "GPL-3.0",
+  "sourceCommit": "631319291b85c25d130daa417b001136df0ea46b",
+  "source": "https://github.com/SUC-DriverOld/rba/tree/631319291b85c25d130daa417b001136df0ea46b",
+  "sourceArchive": "https://github.com/SUC-DriverOld/rba/archive/631319291b85c25d130daa417b001136df0ea46b.tar.gz"
+}

@@ -1,6 +1,6 @@
 [project]
 name = "pymss-plugin-game"
-version = "1.2.1"
+version = "1.2.2"
 description = "pymss plugin: OpenVPI GAME vocal to MIDI transcription"
 requires-python = ">=3.10"
 dependencies = [
@@ -21,7 +21,7 @@ dependencies = [
 [tool.pymss.plugin]
 id = "pymss.game"
 api_version = 2
-requires_pymss = ">=2.2"
+requires_pymss = ">=2.3.0"
 # Reuse Studio's NumPy instead of gamemlx's conservative numpy<2 constraint.
 dependency_mode = "declared-only"
 
@@ -38,12 +38,12 @@ title = "Vocal to MIDI"
 sdk_version = 1
 required_capabilities = [
     "app.info",
-    "audio.analyze",
     "files.pickAudio",
     "files.pickDirectory",
     "files.pickModel",
     "files.reveal",
     "operations.cancel",
+    "operations.describe",
     "operations.start",
     "settings.read",
     "settings.write",
@@ -79,7 +79,7 @@ entry = "ui/dist/index.html"
 component = "ui/src/MidiTool.vue"
 placements = ["tool"]
 operation = "pymss.game.tool"
-permissions = ["ui.overlay", "files", "settings", "app.info", "clipboard.writeText", "operations", "audio.analyze", "shell.openExternal"]
+permissions = ["ui.overlay", "files", "settings", "app.info", "clipboard.writeText", "operations", "shell.openExternal"]
 file_tool = "midi"
 
 [[tool.pymss.plugin.contributions.nodes]]

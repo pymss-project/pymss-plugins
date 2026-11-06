@@ -81,6 +81,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.game",
-  "pluginVersion": "1.2.1",
-  "sourceDigest": "885c396412bb85501468c758939adc0488ae53c8a3015875780cfbac36782319"
+  "pluginVersion": "1.2.2",
+  "sourceDigest": "bc3c39b9dc90219822d42cc148fb734e51562282754c6185a6de566006ea867f"
 }

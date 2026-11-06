@@ -1,6 +1,8 @@
-"""Independent Studio tempo_key tool plugin."""
+"""BPM and musical-key operations backed by the packaged rba CLI."""
 
 
 def setup(plugin):
-    """Activate manifest-declared views using the host's native audio service."""
+    from .backend.operations import setup as register_operations
+
+    register_operations(plugin)
     return plugin

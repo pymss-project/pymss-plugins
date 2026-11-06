@@ -1,0 +1,13 @@
+{
+  "version": "0.2.1",
+  "target": "linux-x86_64",
+  "asset": "rba-0.2.1-linux-x64",
+  "sha256": "96c990fcca0ecfcbb5ecfbb70c8d72b9b9d73e12a00d6f563ffc13e5e45c7430",
+  "license": "GPL-3.0",
+  "sourceCommit": "631319291b85c25d130daa417b001136df0ea46b",
+  "source": "https://github.com/SUC-DriverOld/rba/tree/631319291b85c25d130daa417b001136df0ea46b",
+  "sourceArchive": "https://github.com/SUC-DriverOld/rba/archive/631319291b85c25d130daa417b001136df0ea46b.tar.gz",
+  "requirements": {
+    "glibc": ">=2.35"
+  }
+}

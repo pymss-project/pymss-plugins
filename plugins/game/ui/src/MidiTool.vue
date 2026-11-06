@@ -40,13 +40,15 @@ async function pickModel() {
   modelPath.value = path
 }
 async function openRelease() { try { if (typeof window !== 'undefined' && !(isStudioHost())) window.open(GAME_URL, '_blank', 'noopener,noreferrer'); else await open(GAME_URL) } catch (error) { message.error(errorMessage(error)) } }
+function isBpm(value: unknown): value is number { return typeof value === 'number' && Number.isInteger(value) && value >= 30 && value <= 300 }
 async function detectBpm() {
   const path = inputPath.value
   if (!path || state.value.anyBusy || detectingBpm.value) return
   detectingBpm.value = true
   try {
+    // Detection is optional; failures and invalid reports keep the manually entered tempo.
     const result = await runtime.execute('midi', { action: 'detect_bpm', inputs: [path] })
-    if (inputPath.value === path && result?.operation === 'midi' && result.action === 'detect_bpm') bpm.value = result.roundedBpm
+    if (inputPath.value === path && result?.operation === 'midi' && result.action === 'detect_bpm' && isBpm(result.roundedBpm)) bpm.value = result.roundedBpm
   } finally {
     detectingBpm.value = false
   }

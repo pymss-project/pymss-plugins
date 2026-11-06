@@ -31,6 +31,7 @@ async function createRuntime(t, { autoStart = true, listenGate, launchGate } = {
   const guards = [], messages = [], calls = []
   let receive
   let cancelCommand = async () => true
+  let launchCommand = async () => {}
   vm.runInNewContext(code, {
     exports, computed, inject, reactive, ref, setInterval, clearInterval,
     window: { __TAURI_INTERNALS__: {} },
@@ -43,6 +44,7 @@ async function createRuntime(t, { autoStart = true, listenGate, launchGate } = {
       calls.push({ command, args })
       if (command === 'cancel_task') return cancelCommand()
       if (launchGate) await launchGate.promise
+      await launchCommand(args)
       return { started: true, taskId: args.payload.requestId }
     },
   })
@@ -59,7 +61,7 @@ async function createRuntime(t, { autoStart = true, listenGate, launchGate } = {
     emit('task_cancelled')
     await flush()
   })
-  return { runtime, guards, messages, calls, emit, setCancel: fn => { cancelCommand = fn } }
+  return { runtime, guards, messages, calls, emit, setCancel: fn => { cancelCommand = fn }, setLaunch: fn => { launchCommand = fn } }
 }
 
 test('closing during listener initialization cancels without dispatching a backend task', async t => {
@@ -188,7 +190,8 @@ test('MIDI BPM detection shares busy state and waits for cancellation before clo
   assert.equal(runtime.stateFor('midi').value.busy, true)
   assert.equal(runtime.stateFor('convert').value.anyBusy, true)
   assert.equal(await runtime.execute('convert', { inputs: ['audio.wav'] }), null)
-  assert.equal(calls[0].command, 'start_tempo_key_analysis')
+  assert.equal(calls[0].command, 'start_audio_tool')
+  assert.equal(calls[0].args.payload.operation, 'midi')
   assert.equal(calls[0].args.payload.action, 'detect_bpm')
   let closed = false
   const closing = guards[0]().then(() => { closed = true })
@@ -229,6 +232,90 @@ test('failed MIDI BPM detection preserves manual tempo', async t => {
   await detecting
   assert.equal(midi.bpm.value, 137)
   assert.match(runtime.stateFor('midi').value.error, /No rhythmic onsets/)
+})
+
+test('a missing BPM provider keeps manual tempo, shows a notice and leaves conversion available', async t => {
+  const { runtime, calls, emit, messages, setLaunch } = await createRuntime(t)
+  const midi = createMidi(runtime)
+  midi.inputPath.value = 'vocals.wav'
+  midi.bpm.value = 96
+  setLaunch(async () => {
+    throw Object.assign(new Error('Operation pymss.tempo_key.detect_bpm is unavailable: Unknown operation'), {
+      code: 'TEMPO_KEY_PROVIDER_UNAVAILABLE', data: { code: 'TEMPO_KEY_PROVIDER_UNAVAILABLE', operation: 'pymss.tempo_key.detect_bpm' },
+    })
+  })
+  await midi.detectBpm()
+  assert.equal(midi.bpm.value, 96)
+  assert.equal(midi.detectingBpm.value, false)
+  assert.equal(runtime.stateFor('midi').value.anyBusy, false)
+  assert.equal(runtime.stateFor('midi').value.error, locale.tools.tempoKeyProviderUnavailable)
+  assert.equal(runtime.stateFor('midi').value.progress.phase, 'failed')
+  assert.deepEqual(messages.at(-1), { level: 'warning', text: locale.tools.tempoKeyProviderUnavailable })
+  setLaunch(async () => {})
+  const conversion = runtime.execute('midi', { inputPath: 'vocals.wav', bpm: midi.bpm.value })
+  await flush()
+  assert.equal(calls.at(-1).command, 'start_audio_tool')
+  assert.equal(calls.at(-1).args.payload.bpm, 96)
+  emit('audio_tool_result', { operation: 'midi', bpm: 96, noteCount: 3 })
+  assert.equal((await conversion).noteCount, 3)
+})
+
+test('MIDI BPM detection ignores invalid reports and results for a replaced input', async t => {
+  const { runtime, emit } = await createRuntime(t)
+  const midi = createMidi(runtime)
+  midi.inputPath.value = 'vocals.wav'
+  midi.bpm.value = 101
+  for (const roundedBpm of [128.5, 400, 29, Number.NaN, '120', null]) {
+    const detecting = midi.detectBpm()
+    await flush()
+    emit('audio_tool_result', { operation: 'midi', action: 'detect_bpm', bpm: 120, roundedBpm })
+    await detecting
+    assert.equal(midi.bpm.value, 101, String(roundedBpm))
+  }
+  const detecting = midi.detectBpm()
+  await flush()
+  midi.inputPath.value = 'other.wav'
+  emit('audio_tool_result', { operation: 'midi', action: 'detect_bpm', bpm: 90.2, roundedBpm: 90 })
+  await detecting
+  assert.equal(midi.bpm.value, 101)
+  assert.equal(midi.detectingBpm.value, false)
+})
+
+test('known tempo_key failure codes are localized while unknown failures keep their message', async t => {
+  const { runtime, emit } = await createRuntime(t)
+  const cases = [
+    [{ code: 'TEMPO_KEY_TOO_SHORT', message: 'short clip prior' }, locale.tools.tempoKeyTooShort],
+    [{ code: 'TEMPO_KEY_INVALID_SAMPLE_RATE', message: 'invalid analysis rate' }, locale.tools.tempoKeyInvalidSampleRate],
+    [{ code: 'TEMPO_KEY_UNSUPPORTED_SAMPLE_RATE', message: 'invalid source rate' }, locale.tools.tempoKeyUnsupportedSampleRate],
+    [{ code: 'TEMPO_KEY_NO_BPM', message: 'rba reported no rhythmic BPM' }, locale.tools.tempoKeyNoBpm],
+    [{ code: 'TEMPO_KEY_RBA_MISSING', message: 'rba not found' }, locale.tools.tempoKeyRbaMissing],
+    [{ code: 'TEMPO_KEY_RBA_GLIBC_UNSUPPORTED', message: 'glibc too old', requiredGlibc: '2.28', currentGlibc: '2.17' },
+      locale.tools.tempoKeyRbaGlibcUnsupported.replace('{required}', '2.28').replace('{current}', '2.17')],
+    [{ code: 'TEMPO_KEY_DURATION_LIMIT', message: 'too long' }, locale.tools.tempoKeyDurationLimit],
+    [{ code: 'NATIVE_PROCESS_FAILED', message: 'rba exited with status 3' }, 'rba exited with status 3'],
+    [{ message: 'Unexpected decoder failure' }, 'Unexpected decoder failure'],
+  ]
+  for (const [payload, expected] of cases) {
+    const work = runtime.execute('tempo_key', { inputs: ['audio.wav'] })
+    await flush()
+    emit('error', payload)
+    assert.equal(await work, null)
+    assert.equal(runtime.stateFor('tempo_key').value.error, expected)
+    assert.equal(runtime.stateFor('tempo_key').value.logs.at(-1).detail, expected)
+  }
+})
+
+test('tempo_key analysis is launched through the plugin operation entry point', async t => {
+  const { runtime, calls, emit } = await createRuntime(t)
+  const work = runtime.execute('tempo_key', { inputs: ['a.wav', 'b.wav'] })
+  await flush()
+  assert.deepEqual(calls.map(call => call.command), ['start_audio_tool'])
+  assert.equal(calls[0].args.payload.operation, 'tempo_key')
+  const result = { operation: 'tempo_key', items: [{ path: 'a.wav', fileName: 'a.wav', bpm: 120, key: 'C major', duration: 10 }], succeeded: 1,
+    failed: [{ path: 'b.wav', message: 'no rhythm', code: 'TEMPO_KEY_NO_BPM' }] }
+  emit('audio_tool_result', result)
+  assert.equal(await work, result)
+  assert.equal(runtime.stateFor('tempo_key').value.result.failed[0].code, 'TEMPO_KEY_NO_BPM')
 })
 
 test('cancellation and window close wait for native work to release resources', async t => {

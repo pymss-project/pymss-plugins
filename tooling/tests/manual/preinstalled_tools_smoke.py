@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
 import importlib
 import importlib.util
+import inspect
 import json
 import math
 import os
@@ -32,21 +34,24 @@ def main():
     import pymss.plugins
     import worker_operations
     import worker_plugins
-    import worker_tools
+    from pymss_plugin_manager.leases import release_runtime
 
     def reset():
+        # Each synchronous invocation represents a separate Studio worker.
+        release_runtime()
         pymss.operations._DEFAULT_RUNTIME = None
         pymss.plugins.reset()
 
     passed = []
-    with tempfile.TemporaryDirectory(prefix="preinstalled-tools-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="preinstalled-tools-") as temporary, ExitStack() as lifetime:
+        lifetime.callback(reset)
         work = Path(temporary)
         root = work / "plugins"
         spec = importlib.util.spec_from_file_location("prepare_plugins", args.studio_root / "scripts/prepare-preinstalled-plugins.py")
         builder = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(builder)
-        config = {"schemaVersion": 1, "repository": {"url": "https://github.com/TheSmallHanCat/pymss-plugins", "ref": "main"},
-                  "preinstalled": ["convert", "inspect", "sdr", "slicer", "merge", "loudnorm", "asr", "game", "tempo_key"]}
+        config = {"schemaVersion": 1, "repository": {"url": "https://github.com/pymss-project/pymss-plugins", "ref": "main"},
+                  "preinstalled": ["pymss." + name for name in ["convert", "inspect", "sdr", "slicer", "merge", "loudnorm", "asr", "game", "tempo_key"]]}
         files, packages = builder.collect_packages(ROOT, config)
         files[Path("manifest.json")] = json.dumps({"schemaVersion": 1, "plugins": packages}).encode("utf-8")
         bundles = work / "bundles"
@@ -80,21 +85,18 @@ def main():
             patch.dict(os.environ, env),
             patch.object(worker_plugins, "_root", return_value=root),
             patch.object(worker_plugins, "_BUNDLED_ROOT", bundles),
-            # Keep the test-only bundle metadata in this process; imports are still
-            # verified by the real isolated report probe.
-            patch.object(worker_plugins, "_marketplace_inventory", side_effect=lambda directory, **kwargs: worker_plugins._inventory(directory)),
         ):
 
             def manage(action, name=None):
                 reset()
                 return capture(
                     worker_plugins.cmd_manage_plugin,
-                    {"action": action, "name": name, "taskId": "tool_lifecycle"},
+                    {"action": action, "name": "pymss." + name if name else None, "taskId": "tool_lifecycle"},
                 )[-1]["payload"]
 
             def row(snapshot, name):
                 return next(
-                    item for item in snapshot["installed"] if item["name"] == name
+                    item for item in snapshot["installed"] if item["pluginId"] == "pymss." + name
                 )
 
             inventory = capture(
@@ -120,12 +122,20 @@ def main():
                 ]
                 output = work / ("output-" + name)
                 payload = {**payload, "outputDir": str(output)}
+                inputs = {"request": payload}
+                params = {}
+                if name == "convert":
+                    inputs = {"files": {"paths": payload["inputs"]}}
+                    params = {
+                        "output_dir": str(output), "sample_rate": payload["sampleRate"],
+                        "channels": payload["channels"], "wav_bit_depth": payload["wavBitDepth"],
+                    }
                 events = capture(
                     worker_operations.cmd_run_operation,
                     {
                         "operation": operation,
-                        "inputs": {"request": payload},
-                        "params": {},
+                        "inputs": inputs,
+                        "params": params,
                         "outputDir": str(output),
                         "requestId": name + "-run",
                     },
@@ -143,22 +153,20 @@ def main():
                 )
                 return result
 
-            convert_events = capture(
-                worker_tools.cmd_audio_tools,
+            report = run(
+                "convert",
                 {
                     "operation": "convert",
                     "inputs": [str(source)],
-                    "outputDir": str(work / "convert"),
                     "sampleRate": 48000,
                     "channels": 2,
                     "wavBitDepth": "PCM-16",
-                    "requestId": "convert-run",
                 },
             )
-            converted = convert_events[-1]["payload"]["outputPaths"][0]
+            converted = report["outputPaths"][0]
             with wave.open(converted, "rb") as stream:
                 assert stream.getframerate() == 48000 and stream.getnchannels() == 2
-            passed.append("legacy-command-routes-to-real-converter-plugin")
+            passed.append("operation-routes-to-real-converter-plugin")
             report = run("inspect", {"operation": "inspect", "inputPath": str(source)})
             assert report["audioStreams"][0]["sampleRate"] == 44100 and report["raw"]
             passed.append("real-inspect-retains-full-ffprobe-metadata")
@@ -225,9 +233,9 @@ def main():
                         }
                     ]
 
-            with patch.dict(
-                sys.modules, {"funasr": types.SimpleNamespace(AutoModel=AutoModel)}
-            ):
+            previous_funasr = sys.modules.get("funasr")
+            sys.modules["funasr"] = types.SimpleNamespace(AutoModel=AutoModel)
+            try:
                 report = run(
                     "asr",
                     {
@@ -236,19 +244,22 @@ def main():
                         "outputFormats": ["txt", "json", "srt"],
                     },
                 )
+            finally:
+                # Preserve native modules imported during inference; unloading
+                # and importing PyTorch again in one process is unsupported.
+                if previous_funasr is None:
+                    sys.modules.pop("funasr", None)
+                else:
+                    sys.modules["funasr"] = previous_funasr
             assert (
                 report["text"] == "Transcribed text" and len(report["outputPaths"]) == 3
             )
             passed.append("packaged-asr-fake-backend-produces-all-transcripts")
             reset()
-            worker_plugins.operation_runtime()
-            package = next(
-                name
-                for name, module in sys.modules.items()
-                if getattr(module, "__file__", None)
-                and Path(module.__file__).resolve()
-                == (root / "installed/game/__init__.py").resolve()
-            )
+            snapshot_run = worker_plugins.operation_runtime()
+            handler = inspect.getclosurevars(snapshot_run._operations["pymss.game.tool"].run).nonlocals["handler"]
+            package = handler.__module__.split(".backend.")[0]
+            assert Path(sys.modules[package].__file__).resolve() == (Path(row(snapshot, "game")["path"]) / "__init__.py").resolve()
             inference = importlib.import_module(package + ".backend.engine.infer")
             model = work / "game.pt"
             model.touch()
@@ -258,11 +269,6 @@ def main():
             midi.write_bytes(b"MThd")
             result = inference.MidiInferenceResult(midi, 3, 1.0, 0.0, 0.5, ())
             # Keep this worker's runtime so the fake belongs to its actual installed module.
-            snapshot_run = worker_plugins.operation_runtime()
-            module = snapshot_run._operations["pymss.game.tool"].run.__module__.split(
-                ".backend."
-            )[0]
-            inference = importlib.import_module(module + ".backend.engine.infer")
             with (
                 patch.object(inference, "infer", return_value=result),
                 patch.object(worker_operations, "_runtime", return_value=snapshot_run),
@@ -287,33 +293,64 @@ def main():
                 )
             assert events[-1]["payload"]["outputs"]["report"]["value"]["noteCount"] == 3
             passed.append("packaged-game-resolves-its-own-inference-modules")
-            # Native analysis intentionally has a view/service permission, without a Python placeholder.
+            # BPM analysis is supplied by the installed plugin, including its native runtime.
             tempo = row(snapshot, "tempo_key")
             assert (
-                "audio.analyze" in tempo["contributions"]["views"][0]["permissions"]
-                and not tempo["operations"]
+                "operations" in tempo["contributions"]["views"][0]["permissions"]
+                and set(tempo["operations"])
+                == {"pymss.tempo_key.tool", "pymss.tempo_key.analyze", "pymss.tempo_key.detect_bpm"}
             )
-            passed.append("native-analysis-plugin-admission")
+            passed.append("binary-analysis-plugin-admission")
+            beat_source = input_dir / "beats.wav"
+            with wave.open(str(source), "rb") as stream:
+                pulse = stream.readframes(1024)
+            half_beat = pulse + bytes((22050 - 1024) * 2)
+            with wave.open(str(beat_source), "wb") as stream:
+                stream.setnchannels(1)
+                stream.setsampwidth(2)
+                stream.setframerate(44100)
+                stream.writeframes(half_beat * 72)
+            reset()
+            events = capture(
+                worker_operations.cmd_run_operation,
+                {
+                    "operation": "pymss.tempo_key.detect_bpm",
+                    "inputs": {"audio": str(beat_source)},
+                    "params": {},
+                    "outputDir": str(work / "output-bpm"),
+                    "requestId": "bpm-run",
+                },
+            )
+            assert events[-1]["type"] == "operation_result", events
+            report = events[-1]["payload"]["outputs"]["report"]["value"]
+            assert report["duration"] == 36 and report["roundedBpm"] > 0, report
+            passed.append("bundled-native-bpm-operation-runs-through-worker")
             snapshot = manage("disable", "convert")
             assert (
                 not row(snapshot, "convert")["enabled"]
                 and not row(snapshot, "convert")["loaded"]
             )
-            try:
-                worker_tools._plugin_operation("convert")
-
-            except ValueError:
-                pass
-            else:
-                raise AssertionError(
-                    "Disabled converter still available through old command"
-                )
+            reset()
+            events = capture(
+                worker_operations.cmd_run_operation,
+                {
+                    "operation": "pymss.convert.batch",
+                    "inputs": {"request": {"inputs": [str(source)]}},
+                    "params": {},
+                    "outputDir": str(work / "disabled-convert"),
+                    "requestId": "disabled-convert-run",
+                },
+                expected_code=1,
+            )
+            assert events[-1]["type"] == "error", events
+            assert events[-1]["payload"]["code"] == "OPERATION_UNAVAILABLE", events
+            assert not (work / "disabled-convert").exists()
             snapshot = manage("enable", "convert")
             assert row(snapshot, "convert")["loaded"]
             snapshot = manage("uninstall", "convert")
-            assert "convert" not in {item["name"] for item in snapshot["installed"]}
+            assert "pymss.convert" not in {item["name"] for item in snapshot["installed"]}
             snapshot = manage("prepare_preinstalled")
-            assert "convert" not in {item["name"] for item in snapshot["installed"]}
+            assert "pymss.convert" not in {item["name"] for item in snapshot["installed"]}
             snapshot = manage("install_preinstalled", "convert")
             assert row(snapshot, "convert")["loaded"]
             passed.append("disable-remove-and-explicit-reinstall-honor-user-choice")

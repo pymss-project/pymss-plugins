@@ -11,6 +11,7 @@ OpenVPI GAME (General Audio Manipulation and Estimation v1.0.0) vocal to MIDI tr
 - Other platforms use a local GAME `.pt` checkpoint with the Torch backend. Select the downloaded checkpoint in Studio.
 - Passes the selected vocal language to checkpoints that provide a language map.
 - Exposes the `GameVocalToMidi` workflow node and the v2 `pymss.game.vocal_to_midi` Operation.
+- The Studio page can estimate the tempo from at least 30 seconds of audio with the optional `pymss.tempo_key` plugin (BPM & Key Detection, `pymss.tempo_key.detect_bpm`). Short clips keep the manually entered tempo because rba uses a duration-based prior below 30 seconds. Without the plugin, the tempo can still be entered manually and conversion is unaffected.
 
 ## Installation
 

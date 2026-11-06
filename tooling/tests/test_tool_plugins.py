@@ -48,8 +48,9 @@ class ToolPluginTests(unittest.TestCase):
                 self.assertEqual({view['id'] for view in views}, {'tool', 'spectrum'} if directory.name == 'analysis' else {'tool'})
                 view = next(view for view in views if view['id'] == 'tool')
                 self.assertEqual(view["placements"], ["tool"])
-                self.assertIn("audio.analyze" if directory.name == "tempo_key" else "operations", view["permissions"])
-                self.assertTrue(set(view["permissions"]) <= {"ui.overlay", "operations", "operations.cancel", "files", "files.pickAudio", "settings", "app.info", "clipboard.writeText", "audio.analyze", "runtime", "models.deleteTool", "shell.openExternal"})
+                self.assertIn("operations", view["permissions"])
+                self.assertNotIn("audio.analyze", view["permissions"])
+                self.assertTrue(set(view["permissions"]) <= {"ui.overlay", "operations", "operations.cancel", "files", "files.pickAudio", "settings", "app.info", "clipboard.writeText", "runtime", "models.deleteTool", "shell.openExternal"})
                 entry = directory / view["entry"]
                 self.assertTrue(entry.is_file())
                 html = entry.read_text(encoding="utf-8")

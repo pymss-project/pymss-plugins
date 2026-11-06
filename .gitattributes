@@ -3,3 +3,4 @@
 
 # Preserve upstream runtime files verbatim, including license/README formatting.
 plugins/timing/bin/** -text whitespace=-blank-at-eol,-blank-at-eof
+plugins/tempo_key/bin/** -text whitespace=-blank-at-eol,-blank-at-eof

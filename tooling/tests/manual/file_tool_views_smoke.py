@@ -51,9 +51,9 @@ HOST = r"""({url, dark, platform, machine}) => {
   const frame = document.createElement('iframe');
   frame.id = 'plugin'; frame.sandbox = 'allow-scripts allow-forms';
   frame.style.cssText = 'border:0;width:100%;height:920px';
-  const state = window.bridge = { requests: [], active: null, settings: { mergeSortBy: 'name', asrPreset:'fun-asr-nano' }, cancelNext: false, componentInstalled:true };
+  const state = window.bridge = { requests: [], active: null, settings: { mergeSortBy: 'name', asrPreset:'fun-asr-nano' }, cancelNext: false, componentInstalled:true, bpmProviderAvailable:true, bpmReport:{bpm:119.95,roundedBpm:120,duration:60} };
   const sdk = {sdkVersion:1, capabilities:[
-    'app.info', 'audio.analyze', 'clipboard.writeText', 'files.pickAudio',
+    'app.info', 'operations.describe', 'clipboard.writeText', 'files.pickAudio',
     'files.pickDirectory', 'files.pickModel', 'files.reveal', 'files.scanAudio',
     'models.deleteTool', 'operations.cancel', 'operations.start',
     'runtime.packageStatus', 'runtime.managePackage', 'settings.read',
@@ -83,8 +83,11 @@ HOST = r"""({url, dark, platform, machine}) => {
     } else if (request.method === 'pymss.resize') { if (!state.overlay) frame.style.height = request.params.height + 'px';
     } else if (request.method === 'pymss.overlay') {
       state.overlay = request.params.open;
-      if (state.overlay) {state.previousStyle = frame.style.cssText; frame.style.cssText = 'position:fixed;inset:0;z-index:3000;border:0;width:100vw;height:100vh';}
-      else if (state.previousStyle) frame.style.cssText = state.previousStyle;
+      if (state.overlay) {
+        const bounds=frame.getBoundingClientRect();state.previousStyle = frame.style.cssText;
+        frame.style.cssText = 'position:fixed;inset:0;z-index:3000;border:0;width:100vw;height:100vh';
+        send({jsonrpc:'2.0',method:'host.overlay',params:{open:true,generation:request.params.generation,bounds:{left:bounds.left,top:bounds.top,width:bounds.width},viewport:{width:window.innerWidth,height:window.innerHeight}}});
+      } else if (state.previousStyle) {frame.style.cssText = state.previousStyle;send({jsonrpc:'2.0',method:'host.overlay',params:{open:false}});}
     } else if (request.method === 'app.info') reply(request.id, {...sdk,studio:'pymss-studio',version:'test',locale:'en',defaultOutputDir:'/output',defaultModelDir:'/models',runtimeInfo:{platform,machine,backend:'cpu',packages:{funasr:'1.3.0'}}});
     else if (request.method === 'settings.read') reply(request.id, state.settings);
     else if (request.method === 'settings.write') { state.settings = request.params.data; reply(request.id, state.settings); }
@@ -100,8 +103,17 @@ HOST = r"""({url, dark, platform, machine}) => {
       state.componentInstalled = request.params.payload.action === 'install';
       reply(request.id, componentStatus());
     }
+    else if (request.method === 'operations.describe') {
+      if (!state.bpmProviderAvailable) fail(request.id,'Unknown operation', {code:'OPERATION_NOT_FOUND'});
+      else reply(request.id,{id:request.params.operation,inputs:{audio:{type:'file'}},params:{type:'object',properties:{}},outputs:{report:{type:'object'}}});
+    }
     else if (request.method === 'operations.start') {
       state.active = request;
+      if (request.params.operation === 'pymss.tempo_key.detect_bpm') {
+        if (state.bpmFailureCode) { fail(request.id,'BPM detection rejected the input',{code:state.bpmFailureCode}); return; }
+        if (!state.cancelNext) reply(request.id,{operation:request.params.operation,outputs:{report:{kind:'object',value:state.bpmReport}}});
+        return;
+      }
       const payload = request.params.inputs.request || {operation:'convert'};
       const op = payload.operation;
       if (state.failNext) { state.failNext = false; fail(request.id, 'Input audio is unavailable'); return; }
@@ -109,11 +121,6 @@ HOST = r"""({url, dark, platform, machine}) => {
       send({jsonrpc:'2.0',method:'task.progress',params:{id:request.id,event:{type:'audio_tool_progress',payload:{operation:op,phase:'processing',completed:1,total:2,current:'source.wav'}}}});
       send({jsonrpc:'2.0',method:'task.progress',params:{id:request.id,event:{type:'audio_tool_progress',payload:{operation:op,phase:'processing',completed:2,total:2,current:'source.wav'}}}});
       if (!state.cancelNext) reply(request.id, {operation:request.params.operation,outputs:{report:{kind:'object',value:legacy(op)}}});
-    } else if (request.method === 'audio.analyze') {
-      state.active = request;
-      const payload = request.params.payload; const op = payload.operation;
-      send({jsonrpc:'2.0',method:'task.progress',params:{id:request.id,event:{type:'audio_tool_progress',payload:{operation:op,phase:'analyzing_tempo_key',completed:1,total:2,current:'source.wav'}}}});
-      if (!state.cancelNext) reply(request.id, op === 'midi' ? {operation:'midi',action:'detect_bpm',bpm:120,roundedBpm:120} : legacy(op));
     } else if (request.method === 'operations.cancel') {
       reply(request.id, true);
       const active = state.active; state.cancelNext = false;
@@ -172,7 +179,7 @@ def click_text(frame, pattern: str, *, nth=0):
 
 def wait_for_success(page, operation: str):
     page.wait_for_function(
-        "op => bridge.requests.some(x => x.method === 'operations.start' && x.params.inputs.request.operation === op) || bridge.requests.some(x => x.method === 'audio.analyze' && x.params.payload.operation === op)",
+        "op => bridge.requests.some(x => x.method === 'operations.start' && (x.params.inputs.request?.operation === op || (op === 'midi' && x.params.operation === 'pymss.tempo_key.detect_bpm')))",
         arg=operation,
         timeout=5000,
     )
@@ -183,16 +190,13 @@ def assert_start_contract(page, operation: str, *, analysis=False):
     request = next(
         item
         for item in requests
-        if item["method"] == ("audio.analyze" if analysis else "operations.start")
-        and (
-            item["params"]["payload"]["operation"]
-            if analysis
-            else item["params"]["inputs"]["request"]["operation"]
-        )
-        == operation
+        if item["method"] == "operations.start"
+        and (item["params"]["operation"] == "pymss.tempo_key.detect_bpm" if analysis and operation == "midi"
+             else item["params"]["inputs"].get("request", {}).get("operation") == operation)
     )
-    if analysis:
-        assert request["params"]["payload"]["operation"] == operation
+    assert not any(item["method"] == "audio.analyze" for item in requests)
+    if analysis and operation == "midi":
+        assert request["params"]["inputs"] == {"audio": "/audio/source.wav"}
     else:
         assert request["params"]["inputs"]["request"]["operation"] == operation
         assert request["params"]["params"] == {}
@@ -296,10 +300,30 @@ def run_midi(page, frame):
     click_text(frame, r"Detect")
     wait_for_success(page, "midi")
     assert_start_contract(page, "midi", analysis=True)
-    expect(frame.get_by_text("120", exact=True)).to_be_visible()
+    bpm = frame.locator(".n-input-number input")
+    expect(bpm).to_have_value("120")
+    bpm.fill("137")
+    bpm.press("Tab")
+    for code, text in [("TEMPO_KEY_TOO_SHORT", "requires at least 30 seconds"),
+                       ("TEMPO_KEY_INVALID_SAMPLE_RATE", "RBA_SAMPLE_RATE is invalid"),
+                       ("TEMPO_KEY_UNSUPPORTED_SAMPLE_RATE", "input sample rate is unsupported")]:
+        page.evaluate("code => bridge.bpmFailureCode=code", code)
+        click_text(frame, r"Detect")
+        expect(frame.locator(".n-alert-body__content").filter(has_text=text)).to_be_visible()
+        expect(bpm).to_have_value("137")
+    page.evaluate("bridge.bpmFailureCode=null")
+    starts = page.evaluate("bridge.requests.filter(x=>x.method==='operations.start').length")
+    page.evaluate("bridge.bpmProviderAvailable=false")
+    click_text(frame, r"Detect")
+    expect(frame.locator(".n-alert-body__content").filter(has_text="Automatic tempo detection requires")).to_be_visible()
+    expect(bpm).to_have_value("137")
+    assert page.evaluate("bridge.requests.filter(x=>x.method==='operations.start').length") == starts
+    expect(frame.get_by_role("button", name=re.compile(r"^Convert"))).to_be_enabled()
     click_text(frame, r"Convert")
     wait_for_success(page, "midi")
     assert_start_contract(page, "midi")
+    request = page.evaluate("bridge.requests.filter(x=>x.method==='operations.start'&&x.params.operation==='pymss.game.tool').at(-1)")
+    assert request["params"]["inputs"]["request"]["bpm"] == 137
 
 
 def run_tempo(page, frame):
@@ -310,6 +334,14 @@ def run_tempo(page, frame):
     expect(frame.get_by_text("C major")).to_be_visible()
     # A real cancel button must propagate the dedicated TASK_CANCELLED code.
     cancel_once(page, frame, "tempo_key", analysis=True)
+    expect(frame.locator(".tool-activity-dialog")).to_be_hidden()
+    expect(frame.get_by_text("Cancelled", exact=True)).to_be_visible()
+    # A cancelled task releases the page for another analysis.
+    previous = page.evaluate("bridge.requests.filter(x=>x.method==='operations.start').length")
+    click_text(frame, r"Start detection")
+    page.wait_for_function("previous => bridge.requests.filter(x=>x.method==='operations.start').length > previous", arg=previous)
+    expect(frame.get_by_role("button", name="Start detection", exact=True)).to_be_enabled()
+    expect(frame.get_by_text("C major")).to_be_visible()
 
 
 def run_macos_asr(page, frame):
@@ -335,6 +367,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", help="Use an existing loopback server")
     parser.add_argument("--artifacts", type=Path, default=DEFAULT_ARTIFACTS)
+    parser.add_argument("--plugin", action="append", help="Only exercise the selected plugin; repeatable")
     args = parser.parse_args()
     args.artifacts.mkdir(parents=True, exist_ok=True)
     cases = [
@@ -347,6 +380,11 @@ def main():
         ("game", "midi", run_midi),
         ("tempo_key", "tempo_key", run_tempo),
     ]
+    if args.plugin:
+        unknown = set(args.plugin) - {plugin for plugin, _, _ in cases}
+        if unknown:
+            parser.error("Unknown plugins: " + ", ".join(sorted(unknown)))
+        cases = [case for case in cases if case[0] in args.plugin]
     passed, failures = [], []
     with server_url(args.url) as base_url, sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, args=["--no-proxy-server"])
@@ -356,15 +394,15 @@ def main():
                     browser,
                     base_url,
                     plugin,
-                    dark=index == 6,
-                    width=420 if index == 7 else 1180,
+                    dark=plugin == "game",
+                    width=420 if plugin == "tempo_key" else 1180,
                 )
                 try:
                     runner(page, frame)
                     page.screenshot(
                         path=str(
                             args.artifacts
-                            / f"{plugin}-{'dark' if index == 6 else 'light'}{'-narrow' if index == 7 else ''}.png"
+                            / f"{plugin}-{'dark' if plugin == 'game' else 'light'}{'-narrow' if plugin == 'tempo_key' else ''}.png"
                         ),
                         full_page=True,
                     )
@@ -377,17 +415,18 @@ def main():
                     )
                 finally:
                     page.close()
-            page, frame = open_tool(
-                browser, base_url, "asr", platform="darwin", machine="arm64"
-            )
-            try:
-                run_macos_asr(page, frame)
-                passed.append("asr-mlx-platform")
-                page.screenshot(
-                    path=str(args.artifacts / "asr-mlx-platform.png"), full_page=True
+            if not args.plugin or "asr" in args.plugin:
+                page, frame = open_tool(
+                    browser, base_url, "asr", platform="darwin", machine="arm64"
                 )
-            finally:
-                page.close()
+                try:
+                    run_macos_asr(page, frame)
+                    passed.append("asr-mlx-platform")
+                    page.screenshot(
+                        path=str(args.artifacts / "asr-mlx-platform.png"), full_page=True
+                    )
+                finally:
+                    page.close()
         finally:
             browser.close()
     (args.artifacts / "results.json").write_text(

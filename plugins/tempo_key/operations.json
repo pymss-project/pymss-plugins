@@ -1,8 +1,72 @@
 {
   "formatVersion": 1,
-  "operations": [],
+  "operations": [
+    {
+      "description": "Analyze an audio file with the packaged rba runtime",
+      "id": "pymss.tempo_key.analyze",
+      "inputs": {
+        "audio": {
+          "type": "file"
+        }
+      },
+      "outputs": {
+        "report": {
+          "type": "object"
+        }
+      },
+      "params": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "schemaVersion": 1,
+      "title": "BPM and Key Analysis"
+    },
+    {
+      "description": "Analyze an audio file with the packaged rba runtime",
+      "id": "pymss.tempo_key.detect_bpm",
+      "inputs": {
+        "audio": {
+          "type": "file"
+        }
+      },
+      "outputs": {
+        "report": {
+          "type": "object"
+        }
+      },
+      "params": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "schemaVersion": 1,
+      "title": "BPM Detection"
+    },
+    {
+      "description": "File-based audio tool with progress and structured results",
+      "id": "pymss.tempo_key.tool",
+      "inputs": {
+        "request": {
+          "type": "object"
+        }
+      },
+      "outputs": {
+        "report": {
+          "type": "object"
+        }
+      },
+      "params": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "schemaVersion": 1,
+      "title": "BPM and Key Detection"
+    }
+  ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.tempo_key",
-  "pluginVersion": "0.2.1",
-  "sourceDigest": "f1591cdb112994a9b7705f702021bc58757be7b71859cb29260c846f720432a6"
+  "pluginVersion": "0.3.0",
+  "sourceDigest": "8b9f7f1b3a5e038ae05b50a25616262e7f9b90404d4b503b5a0296d0507c55a0"
 }

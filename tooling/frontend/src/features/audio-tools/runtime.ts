@@ -102,6 +102,34 @@ export function errorMessage(error: unknown) {
   try { return JSON.stringify(error) ?? String(error) } catch { return String(error) }
 }
 
+const KNOWN_FAILURES: Record<string, string> = {
+  MERGE_SAME_DIRECTORY: 'tools.mergeSameDirectory',
+  TEMPO_KEY_PROVIDER_UNAVAILABLE: 'tools.tempoKeyProviderUnavailable',
+  TEMPO_KEY_RBA_MISSING: 'tools.tempoKeyRbaMissing',
+  TEMPO_KEY_RBA_RUNTIME_INVALID: 'tools.tempoKeyRbaRuntimeInvalid',
+  TEMPO_KEY_RBA_GLIBC_UNSUPPORTED: 'tools.tempoKeyRbaGlibcUnsupported',
+  TEMPO_KEY_RBA_GLIBC_UNAVAILABLE: 'tools.tempoKeyRbaGlibcUnavailable',
+  TEMPO_KEY_INVALID_OUTPUT: 'tools.tempoKeyInvalidOutput',
+  TEMPO_KEY_NO_BPM: 'tools.tempoKeyNoBpm',
+  TEMPO_KEY_DURATION_LIMIT: 'tools.tempoKeyDurationLimit',
+  TEMPO_KEY_DURATION_UNKNOWN: 'tools.tempoKeyDurationUnknown',
+  TEMPO_KEY_TOO_SHORT: 'tools.tempoKeyTooShort',
+  TEMPO_KEY_INVALID_SAMPLE_RATE: 'tools.tempoKeyInvalidSampleRate',
+  TEMPO_KEY_UNSUPPORTED_SAMPLE_RATE: 'tools.tempoKeyUnsupportedSampleRate',
+}
+
+/** Locale key and values for a structured failure code; null keeps the original message. */
+export function knownFailure(fields: unknown): { key: string; values: Record<string, string> } | null {
+  if (!fields || typeof fields !== 'object') return null
+  const value = fields as Record<string, unknown>
+  const key = typeof value.code === 'string' && Object.hasOwn(KNOWN_FAILURES, value.code) ? KNOWN_FAILURES[value.code] : undefined
+  if (!key) return null
+  const text = (field: unknown) => typeof field === 'string' || typeof field === 'number' ? String(field) : '?'
+  return { key, values: { required: text(value.requiredGlibc), current: text(value.currentGlibc) } }
+}
+
+type CodedError = Error & { code?: string; data?: Record<string, unknown> }
+
 export function createAudioToolRuntime(): AudioToolRuntime {
   if (sharedRuntime) return sharedRuntime
   const { t } = useI18n()
@@ -213,6 +241,9 @@ export function createAudioToolRuntime(): AudioToolRuntime {
   }
 
   function describeError(error: unknown) {
+    const coded = error as CodedError
+    const known = knownFailure(coded?.data) || knownFailure(coded)
+    if (known) return t(known.key, known.values)
     const value = errorMessage(error)
     if (!value.includes('Invalid worker event')) return value
     const output = value.match(/raw=(.*)$/s)?.[1]?.trim() || t('tools.unknownWorkerOutput')
@@ -245,8 +276,7 @@ export function createAudioToolRuntime(): AudioToolRuntime {
       // Cancellation can settle the task while event-listener setup is pending.
       await Promise.race([start(), completion])
       if (pending.cancelRequested) throw new AudioToolCancelledError('Audio tool task cancelled')
-      const nativeAnalysis = tool === 'tempo_key' || (tool === 'midi' && payload.action === 'detect_bpm')
-      pending.launch = invoke<{ taskId: string; started: boolean }>(nativeAnalysis ? 'start_tempo_key_analysis' : 'start_audio_tool', {
+      pending.launch = invoke<{ taskId: string; started: boolean }>('start_audio_tool', {
         payload: { ...payload, operation: tool, requestId },
       })
       await pending.launch
@@ -283,6 +313,8 @@ export function createAudioToolRuntime(): AudioToolRuntime {
         ? t('tools.asrModelIncompleteError')
         : describeError(error)
       errors[tool] = description
+      // An optional provider that is not installed needs a visible notice, not only a log entry.
+      if ((error as CodedError)?.code === 'TEMPO_KEY_PROVIDER_UNAVAILABLE') message.warning(description)
       const activity = activities[tool]
       const progress: AudioToolProgress = { ...(activity?.progress || { completed: 0, total: 0, current: '' }), phase: 'failed' }
       if (activity) activity.progress = progress
@@ -385,9 +417,13 @@ export function createAudioToolRuntime(): AudioToolRuntime {
               errors[pending.tool] = t('tools.asrModelIncompleteError')
             }
             pendingRequest = undefined
-            const failure = workerEvent.payload?.code === 'MERGE_SAME_DIRECTORY'
-              ? t('tools.mergeSameDirectory') : String(workerEvent.payload?.message || 'Audio tool failed')
-            pending.reject(new Error(failure))
+            const known = knownFailure(workerEvent.payload)
+            const failure: CodedError = new Error(known
+              ? t(known.key, known.values) : String(workerEvent.payload?.message || 'Audio tool failed'))
+            // Keep structured fields so callers can still identify the backend failure.
+            if (typeof workerEvent.payload?.code === 'string') failure.code = workerEvent.payload.code
+            if (workerEvent.payload) failure.data = { ...workerEvent.payload }
+            pending.reject(failure)
           }
           return
         }

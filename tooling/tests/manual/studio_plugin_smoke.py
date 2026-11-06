@@ -19,12 +19,12 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def capture(command, payload):
+def capture(command, payload, *, expected_code=0):
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
         code = command(payload)
     events = [json.loads(line) for line in output.getvalue().splitlines() if line.strip()]
-    assert code == 0, events
+    assert code == expected_code, events
     return events
 
 

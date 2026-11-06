@@ -4,7 +4,8 @@ import { presentation } from './presentation'
 import { refreshToolLayout } from './layout'
 
 type JsonObject = Record<string, unknown>
-type HostError = Error & { code?: string; data?: JsonObject }
+// `remote` marks errors returned by Studio, as opposed to local timeouts or page disposal.
+type HostError = Error & { code?: string; data?: JsonObject; remote?: boolean }
 type Progress = { id: number; message?: string; fraction?: number; operation?: string; event?: { type: string; payload: JsonObject } }
 type WorkerEvent = { type: string; taskId?: string; requestId?: string; payload: JsonObject }
 type Handlers = { resolve: (value: unknown) => void; reject: (error: HostError) => void; progress?: (update: Progress) => void; timer?: ReturnType<typeof setTimeout> }
@@ -103,7 +104,7 @@ export function call<T = unknown>(method: string, params: JsonObject = {}, progr
   const id = ++sequence
   // Tool state can contain Vue proxies. The public bridge carries JSON values.
   const request = JSON.parse(JSON.stringify({ jsonrpc: '2.0', id, method, params }))
-  const longRunning = method === 'operations.start' || method === 'audio.analyze' || method === 'runtime.managePackage' || method.startsWith('files.pick') || method === 'operations.cancel'
+  const longRunning = method === 'operations.start' || method === 'runtime.managePackage' || method.startsWith('files.pick') || method === 'operations.cancel'
   const promise = new Promise<T>((resolve, reject) => {
     const timer = longRunning ? undefined : setTimeout(() => {
       pending.delete(id)
@@ -159,6 +160,7 @@ window.addEventListener('message', event => {
       const error: HostError = new Error(String(data.error.message || 'Studio request failed'))
       error.data = data.error.data
       error.code = data.error.data?.code
+      error.remote = true
       handlers.reject(error)
     } else handlers.resolve(data.result)
   }
@@ -217,11 +219,16 @@ function emit(type: string, id: string, payload: JsonObject) {
   for (const listener of listeners) listener({ payload: { type, taskId: id, requestId: id, payload } })
 }
 
-function start(method: string, id: string, params: JsonObject, resultEvent: string, operation?: string) {
+// Operations owned by another plugin report through the calling page's legacy
+// result shape so the shared runtime keeps its lifecycle, cancel and log handling.
+type Adapter = (report: JsonObject) => JsonObject
+
+function start(method: string, id: string, params: JsonObject, resultEvent: string, operation?: string, adapt?: Adapter) {
   const job = call(method, params, update => {
     const event = update.event
-    if (event && typeof event.type === 'string' && event.payload && typeof event.payload === 'object') emit(event.type, id, event.payload)
-    else if (operation === 'convert' && typeof update.fraction === 'number' && Number.isFinite(update.fraction)) {
+    if (event && typeof event.type === 'string' && event.payload && typeof event.payload === 'object') {
+      emit(event.type, id, adapt && event.type === 'audio_tool_progress' ? { ...event.payload, operation } : event.payload)
+    } else if (operation === 'convert' && typeof update.fraction === 'number' && Number.isFinite(update.fraction)) {
       emit('audio_tool_progress', id, { operation, phase: 'converting', completed: Math.round(Math.min(1, Math.max(0, update.fraction)) * 100), total: 100, current: update.message || '' })
     }
   })
@@ -230,13 +237,51 @@ function start(method: string, id: string, params: JsonObject, resultEvent: stri
     const payload = method === 'operations.start'
       ? (result as { outputs: { report: { value: JsonObject } } }).outputs.report.value
       : result as JsonObject
-    emit(resultEvent, id, operation === 'convert' ? { ...payload, operation } : payload)
+    emit(resultEvent, id, adapt ? adapt(payload) : operation === 'convert' ? { ...payload, operation } : payload)
   }).catch((error: HostError) => {
+    if (operation === 'midi' && params.operation === BPM_OPERATION && error.code === 'OPERATION_UNAVAILABLE') {
+      error = failure('TEMPO_KEY_PROVIDER_UNAVAILABLE', error.message, {
+        ...error.data, causeCode: error.code, causeMessage: error.message,
+      })
+    }
     emit(error.code === 'TASK_CANCELLED' ? 'task_cancelled' : 'error', id, {
       ...error.data, code: error.code || 'AUDIO_TOOL_FAILED', message: error.message, ...(operation ? { operation } : {}),
     })
   }).finally(() => tasks.delete(id))
   return { taskId: id, started: true }
+}
+
+const BPM_OPERATION = 'pymss.tempo_key.detect_bpm'
+
+function failure(code: string, message: string, data: JsonObject = {}) {
+  const error: HostError = new Error(message)
+  error.code = code
+  error.data = { ...data, code }
+  return error
+}
+
+function bpmReport(report: JsonObject): JsonObject {
+  const { bpm, roundedBpm, duration } = report || {}
+  // Never let a malformed provider report overwrite the user's tempo.
+  if (typeof bpm !== 'number' || !Number.isFinite(bpm) || bpm <= 0 || typeof roundedBpm !== 'number'
+    || !Number.isInteger(roundedBpm) || roundedBpm < 30 || roundedBpm > 300 || roundedBpm !== Math.round(bpm)
+    || typeof duration !== 'number' || !Number.isFinite(duration) || duration + 1e-6 < 30 || duration > 1800 + 1e-6) {
+    throw failure('TEMPO_KEY_INVALID_OUTPUT', 'BPM detection returned an invalid report', { operation: BPM_OPERATION })
+  }
+  return { ...report, operation: 'midi', action: 'detect_bpm' }
+}
+
+// BPM detection is optional for GAME: confirm the provider is installed and
+// enabled before starting, so its absence is reported instead of a generic error.
+async function requireProvider(operation: string) {
+  try { await call('operations.describe', { operation }).promise }
+  catch (cause) {
+    const error = cause as HostError
+    if (!error.remote) throw error
+    throw failure('TEMPO_KEY_PROVIDER_UNAVAILABLE', `Operation ${operation} is unavailable: ${error.message}`, {
+      ...error.data, operation, causeCode: error.code, causeMessage: error.message,
+    })
+  }
 }
 
 export async function invoke<T = unknown>(command: string, args: JsonObject = {}): Promise<T> {
@@ -252,6 +297,19 @@ export async function invoke<T = unknown>(command: string, args: JsonObject = {}
     case 'reveal_path': value = await call('files.reveal', { path: args.path }).promise; break
     case 'start_audio_tool': {
       if (payload.operation !== __FILE_TOOL__ || !__OPERATION_ID__) throw new Error('Unsupported plugin operation')
+      if (__FILE_TOOL__ === 'midi' && payload.action === 'detect_bpm') {
+        const inputs = payload.inputs
+        if (!Array.isArray(inputs) || inputs.length !== 1 || typeof inputs[0] !== 'string' || !inputs[0]) {
+          throw new Error('BPM detection requires exactly one audio file')
+        }
+        await requireProvider(BPM_OPERATION)
+        // The page may have closed while the provider check was in flight.
+        if (disposed) throw new Error('Tool page closed')
+        value = start('operations.start', String(payload.requestId), {
+          operation: BPM_OPERATION, inputs: { audio: inputs[0] }, params: {},
+        }, 'audio_tool_result', __FILE_TOOL__, bpmReport)
+        break
+      }
       const conversion = payload.operation === 'convert'
       value = start('operations.start', String(payload.requestId), {
         operation: __OPERATION_ID__,
@@ -264,8 +322,6 @@ export async function invoke<T = unknown>(command: string, args: JsonObject = {}
       }, 'audio_tool_result', __FILE_TOOL__)
       break
     }
-    case 'start_tempo_key_analysis':
-      value = start('audio.analyze', String(payload.requestId), { payload }, 'audio_tool_result', String(payload.operation)); break
     case 'cancel_task': {
       const id = tasks.get(String(args.taskId))
       value = id === undefined ? false : await call<boolean>('operations.cancel', { id }).promise

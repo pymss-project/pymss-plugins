@@ -10,7 +10,7 @@ const code = ts.transpileModule(source.statements.filter(statement => !ts.isImpo
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText
 
-async function host(t, saved = {}, timers = { setTimeout, clearTimeout }) {
+async function host(t, saved = {}, timers = { setTimeout, clearTimeout }, { fileTool = 'slicer', operationId = 'pymss.slicer.tool', respond } = {}) {
   const scope = effectScope()
   t.after(() => scope.stop())
   const exports = {}, calls = [], callbacks = {}
@@ -26,6 +26,10 @@ async function host(t, saved = {}, timers = { setTimeout, clearTimeout }) {
     calls.push(request)
     queueMicrotask(() => {
       if (request.method === 'pymss.ready') return receive({ jsonrpc: '2.0', method: 'host.ready' })
+      // A custom responder returns {result} or {error}, or 'pending' to leave the request open.
+      const custom = request.id !== undefined ? respond?.(request, receive) : undefined
+      if (custom === 'pending') return
+      if (custom) return receive({ jsonrpc: '2.0', id: request.id, ...custom })
       const result = request.method === 'app.info' ? {
         sdkVersion: requirements.sdkVersion, capabilities: requirements.requiredCapabilities,
         locale: 'en', defaultOutputDir: '/output',
@@ -44,7 +48,7 @@ async function host(t, saved = {}, timers = { setTimeout, clearTimeout }) {
   } }
   scope.run(() => vm.runInNewContext(code, {
     exports, window, document, structuredClone, ref, watch, ...timers,
-    presentation: {}, refreshToolLayout() {}, useSettingsStore: () => ({}), __FILE_TOOL__: 'slicer', __OPERATION_ID__: 'pymss.slicer.tool',
+    presentation: {}, refreshToolLayout() {}, useSettingsStore: () => ({}), __FILE_TOOL__: fileTool, __OPERATION_ID__: operationId,
     __STUDIO_REQUIREMENTS__: requirements,
   }))
   await exports.connect()
@@ -184,4 +188,159 @@ test('invalid stored form values fall back to valid defaults', async t => {
     assert.equal(sdk.toolRef('bpm', null).value, null)
     assert.equal(Object.keys(sdk.toolRef('audioPaths', {}).value).length, 0)
   })
+})
+
+const plain = value => JSON.parse(JSON.stringify(value))
+const flush = () => new Promise(setImmediate)
+const BPM_OPERATION = 'pymss.tempo_key.detect_bpm'
+
+async function gameHost(t, respond) {
+  const fixture = await host(t, {}, undefined, { fileTool: 'midi', operationId: 'pymss.game.tool', respond })
+  const events = []
+  await fixture.sdk.listen('pymss://worker-event', event => events.push(plain(event.payload)))
+  return { ...fixture, events }
+}
+
+const detect = (sdk, requestId = 'bpm-1', inputs = ['/audio/vocals.wav']) => sdk.invoke('start_audio_tool', {
+  payload: { operation: 'midi', action: 'detect_bpm', inputs, requestId },
+})
+const report = value => ({ result: { operation: BPM_OPERATION, outputs: { report: { kind: 'object', value } } } })
+
+test('GAME BPM detection starts the tempo_key operation and adapts its report to the page result', async t => {
+  const { sdk, calls, events } = await gameHost(t, (request, receive) => {
+    if (request.method === 'operations.describe') return { result: { id: request.params.operation } }
+    if (request.method === 'operations.start') {
+      receive({ jsonrpc: '2.0', method: 'task.progress', params: { id: request.id, event: { type: 'audio_tool_progress',
+        payload: { operation: 'tempo_key', phase: 'analyzing_tempo_key', completed: 1, total: 1, current: 'vocals.wav' } } } })
+      return report({ bpm: 127.6, roundedBpm: 128, duration: 31.5 })
+    }
+  })
+  assert.deepEqual(plain(await detect(sdk)), { taskId: 'bpm-1', started: true })
+  await flush()
+  const describe = calls.findIndex(request => request.method === 'operations.describe')
+  const start = calls.findIndex(request => request.method === 'operations.start')
+  assert.equal(calls[describe].params.operation, BPM_OPERATION)
+  assert.ok(describe < start)
+  assert.deepEqual(calls[start].params, { operation: BPM_OPERATION, inputs: { audio: '/audio/vocals.wav' }, params: {} })
+  assert.equal(calls.some(request => request.method === 'audio.analyze'), false)
+  assert.deepEqual(events, [
+    { type: 'audio_tool_progress', taskId: 'bpm-1', requestId: 'bpm-1',
+      payload: { operation: 'midi', phase: 'analyzing_tempo_key', completed: 1, total: 1, current: 'vocals.wav' } },
+    { type: 'audio_tool_result', taskId: 'bpm-1', requestId: 'bpm-1',
+      payload: { bpm: 127.6, roundedBpm: 128, duration: 31.5, operation: 'midi', action: 'detect_bpm' } },
+  ])
+})
+
+test('GAME BPM detection reports a missing provider without starting work', async t => {
+  const { sdk, calls, events } = await gameHost(t, request => request.method === 'operations.describe'
+    ? { error: { code: -32000, message: 'Unknown operation', data: { code: 'OPERATION_NOT_FOUND' } } } : undefined)
+  await assert.rejects(detect(sdk), error => {
+    assert.equal(error.code, 'TEMPO_KEY_PROVIDER_UNAVAILABLE')
+    assert.equal(error.data.code, 'TEMPO_KEY_PROVIDER_UNAVAILABLE')
+    assert.equal(error.data.operation, BPM_OPERATION)
+    assert.equal(error.data.causeCode, 'OPERATION_NOT_FOUND')
+    assert.match(error.message, /Unknown operation/)
+    return true
+  })
+  await flush()
+  assert.equal(calls.some(request => request.method === 'operations.start'), false)
+  assert.equal(events.length, 0)
+  assert.equal(await sdk.invoke('cancel_task', { taskId: 'bpm-1' }), false)
+})
+
+test('GAME BPM detection requires exactly one input and leaves MIDI conversion on its own operation', async t => {
+  const { sdk, calls } = await gameHost(t, request => request.method === 'operations.start' ? 'pending' : undefined)
+  for (const inputs of [[], ['/a.wav', '/b.wav'], [''], [17]]) {
+    await assert.rejects(detect(sdk, 'bpm-invalid', inputs), /exactly one audio file/)
+  }
+  assert.equal(calls.some(request => request.method === 'operations.describe' || request.method === 'operations.start'), false)
+  await sdk.invoke('start_audio_tool', { payload: { operation: 'midi', inputPath: '/audio/vocals.wav', bpm: 96, requestId: 'midi-1' } })
+  const start = calls.find(request => request.method === 'operations.start')
+  assert.equal(start.params.operation, 'pymss.game.tool')
+  assert.equal(start.params.inputs.request.bpm, 96)
+  assert.equal(calls.some(request => request.method === 'operations.describe'), false)
+})
+
+test('invalid BPM reports become structured errors instead of results', async t => {
+  const values = [{ bpm: 120, roundedBpm: 400 }, { bpm: 120.4, roundedBpm: 120.4 }, { bpm: null, roundedBpm: 120 },
+    { bpm: 120, roundedBpm: '120' }, { bpm: -1, roundedBpm: 120 }, { bpm: 0, roundedBpm: 120 },
+    { bpm: 85, roundedBpm: 120 }, {}, null,
+    ...[undefined, NaN, Infinity, -1, 0, 4, 29.9, 1801, '31'].map(duration => ({ bpm: 120, roundedBpm: 120, duration }))]
+  let index = 0
+  const { sdk, events } = await gameHost(t, request => {
+    if (request.method === 'operations.describe') return { result: {} }
+    if (request.method === 'operations.start') return report(values[index++])
+  })
+  for (let item = 0; item < values.length; item += 1) {
+    await detect(sdk, `bpm-${item}`)
+    await flush()
+  }
+  assert.equal(events.length, values.length)
+  for (const event of events) {
+    assert.equal(event.type, 'error')
+    assert.equal(event.payload.code, 'TEMPO_KEY_INVALID_OUTPUT')
+    assert.equal(event.payload.operation, 'midi')
+  }
+})
+
+test('GAME identifies an unloaded BPM provider after static discovery succeeded', async t => {
+  const { sdk, events } = await gameHost(t, request => {
+    if (request.method === 'operations.describe') return { result: {} }
+    if (request.method === 'operations.start') return { error: { code: -32000, message: 'unknown operation',
+      data: { code: 'OPERATION_UNAVAILABLE', operation: BPM_OPERATION } } }
+  })
+  await detect(sdk)
+  await flush()
+  assert.equal(events.length, 1)
+  assert.equal(events[0].type, 'error')
+  assert.equal(events[0].payload.code, 'TEMPO_KEY_PROVIDER_UNAVAILABLE')
+  assert.equal(events[0].payload.causeCode, 'OPERATION_UNAVAILABLE')
+  assert.equal(events[0].payload.operation, 'midi')
+})
+
+test('backend failures keep their code and structured fields through the worker event bridge', async t => {
+  const { sdk, events } = await gameHost(t, request => {
+    if (request.method === 'operations.describe') return { result: {} }
+    if (request.method === 'operations.start') return { error: { code: -32000, message: 'rba requires glibc 2.28',
+      data: { code: 'TEMPO_KEY_RBA_GLIBC_UNSUPPORTED', requiredGlibc: '2.28', currentGlibc: '2.17' } } }
+  })
+  await detect(sdk)
+  await flush()
+  assert.deepEqual(events, [{ type: 'error', taskId: 'bpm-1', requestId: 'bpm-1', payload: {
+    code: 'TEMPO_KEY_RBA_GLIBC_UNSUPPORTED', requiredGlibc: '2.28', currentGlibc: '2.17',
+    message: 'rba requires glibc 2.28', operation: 'midi',
+  } }])
+})
+
+test('cancelling GAME BPM detection cancels the tempo_key operation and reports task_cancelled', async t => {
+  let started
+  const { sdk, calls, events, receive } = await gameHost(t, request => {
+    if (request.method === 'operations.describe') return { result: {} }
+    if (request.method === 'operations.start') { started = request; return 'pending' }
+    if (request.method === 'operations.cancel') return { result: true }
+  })
+  await detect(sdk)
+  await flush()
+  assert.equal(started.params.operation, BPM_OPERATION)
+  assert.equal(await sdk.invoke('cancel_task', { taskId: 'bpm-1' }), true)
+  assert.equal(calls.findLast(request => request.method === 'operations.cancel').params.id, started.id)
+  receive({ jsonrpc: '2.0', id: started.id, error: { code: -32000, message: 'Task cancelled', data: { code: 'TASK_CANCELLED' } } })
+  await flush()
+  assert.deepEqual(events.map(event => event.type), ['task_cancelled'])
+  assert.equal(events[0].payload.operation, 'midi')
+  assert.equal(await sdk.invoke('cancel_task', { taskId: 'bpm-1' }), false)
+})
+
+test('the tempo_key page uses its own tool operation and no longer exposes audio.analyze', async t => {
+  const { sdk, calls } = await host(t, {}, undefined, {
+    fileTool: 'tempo_key', operationId: 'pymss.tempo_key.tool',
+    respond: request => request.method === 'operations.start' ? 'pending' : undefined,
+  })
+  await sdk.invoke('start_audio_tool', { payload: { operation: 'tempo_key', inputs: ['/audio/a.wav'], requestId: 'tk-1' } })
+  const start = calls.find(request => request.method === 'operations.start')
+  assert.equal(start.params.operation, 'pymss.tempo_key.tool')
+  assert.deepEqual(start.params.inputs.request.inputs, ['/audio/a.wav'])
+  assert.deepEqual(start.params.params, {})
+  assert.equal(calls.some(request => request.method === 'operations.describe' || request.method === 'audio.analyze'), false)
+  await assert.rejects(sdk.invoke('start_tempo_key_analysis', { payload: { operation: 'tempo_key', requestId: 'tk-2' } }), /Unsupported Studio tool service/)
 })

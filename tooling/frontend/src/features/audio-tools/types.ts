@@ -27,7 +27,7 @@ export type AudioToolPhase =
   | 'cancelled'
   | 'failed'
 
-export type AudioToolFailure = { path: string; message: string }
+export type AudioToolFailure = { path: string; message: string; code?: string; requiredGlibc?: string; currentGlibc?: string }
 export type AudioToolWarning = 'no_notes_detected' | 'stereo_downmix_fallback' | 'timestamps_unavailable' | string
 
 export type AudioToolResultBase = {
@@ -69,7 +69,7 @@ export type MidiResult = AudioToolResultBase & {
   firstNoteAt: number | null; lastNoteAt: number | null
 }
 export type MidiBpmResult = AudioToolResultBase & {
-  operation: 'midi'; action: 'detect_bpm'; bpm: number; roundedBpm: number
+  operation: 'midi'; action: 'detect_bpm'; bpm: number; roundedBpm: number; duration: number
 }
 export type AudioFormatInfo = {
   name: string; longName: string; duration: number | null; startTime: number | null

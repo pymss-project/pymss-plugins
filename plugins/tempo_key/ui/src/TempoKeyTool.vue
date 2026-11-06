@@ -9,8 +9,8 @@ import { useMessage } from 'naive-ui'
 import { CloseCircleOutline, CopyOutline, DocumentOutline, FolderOpenOutline, PulseOutline } from '@vicons/ionicons5'
 import AudioToolPanel from '@/features/audio-tools/shared/AudioToolPanel.vue'
 import AudioToolHeader from '@/features/audio-tools/shared/AudioToolHeader.vue'
-import { useAudioToolRuntime } from '@/features/audio-tools/runtime'
-import type { TempoKeyItem } from '@/features/audio-tools/types'
+import { knownFailure, useAudioToolRuntime } from '@/features/audio-tools/runtime'
+import type { AudioToolFailure, TempoKeyItem } from '@/features/audio-tools/types'
 
 type ScanResult = { files: string[]; warnings: string[] }
 const { t } = useI18n()
@@ -39,6 +39,11 @@ async function pickFolder() {
 function run() { void runtime.execute('tempo_key', { inputs: inputs.value }) }
 // rba reports libKeyFinder names ("Bb minor"); "silence" means no tonal content.
 function keyLabel(key: string) { return key === 'silence' ? t('tools.tempo_keySilence') : key }
+// Known per-file codes are localized; anything else keeps the backend message.
+function failureText(failure: AudioToolFailure) {
+  const known = knownFailure(failure)
+  return known ? t(known.key, known.values) : failure.message
+}
 function duration(value: number) {
   const seconds = Math.max(0, Math.round(value))
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
@@ -76,7 +81,7 @@ async function copyItems(items: TempoKeyItem[]) {
           </div>
         </div>
         <n-button text size="small" @click="copyItems(result.items)"><template #icon><n-icon :component="CopyOutline" /></template>{{ t('common.copy') }}</n-button>
-        <div v-if="result.failed?.length" class="tempo-key-failures" role="status"><strong>{{ t('tools.skippedCount', { count: result.failed.length }) }}</strong><span v-for="failure in result.failed.slice(0, 5)" :key="failure.path">{{ fileName(failure.path) }}: {{ failure.message }}</span></div>
+        <div v-if="result.failed?.length" class="tempo-key-failures" role="status"><strong>{{ t('tools.skippedCount', { count: result.failed.length }) }}</strong><span v-for="failure in result.failed.slice(0, 5)" :key="failure.path">{{ fileName(failure.path) }}: {{ failureText(failure) }}</span></div>
       </section>
     </template>
   </AudioToolPanel>

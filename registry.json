@@ -264,8 +264,8 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/game",
     "ref": "main",
-    "version": "1.2.1",
-    "requires_pymss": ">=2.2",
+    "version": "1.2.2",
+    "requires_pymss": ">=2.3.0",
     "operations": [
       "pymss.game.vocal_to_midi",
       "pymss.game.tool"
@@ -306,12 +306,12 @@
       "sdkVersion": 1,
       "requiredCapabilities": [
         "app.info",
-        "audio.analyze",
         "files.pickAudio",
         "files.pickDirectory",
         "files.pickModel",
         "files.reveal",
         "operations.cancel",
+        "operations.describe",
         "operations.start",
         "settings.read",
         "settings.write",
@@ -678,9 +678,13 @@
     "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/tempo_key",
     "ref": "main",
-    "version": "0.2.1",
-    "requires_pymss": ">=2.2",
-    "operations": [],
+    "version": "0.3.0",
+    "requires_pymss": ">=2.3.0",
+    "operations": [
+      "pymss.tempo_key.analyze",
+      "pymss.tempo_key.detect_bpm",
+      "pymss.tempo_key.tool"
+    ],
     "description": "Detect tempo and musical key for beat and tonal analysis.",
     "tags": [
       "audio",
@@ -690,7 +694,12 @@
     "locales": {
       "en": {
         "title": "Tempo and key",
-        "description": "Detect tempo and musical key for beat and tonal analysis."
+        "description": "Detect tempo and musical key for beat and tonal analysis.",
+        "operations": {
+          "pymss.tempo_key.analyze": "BPM and key analysis",
+          "pymss.tempo_key.detect_bpm": "BPM detection",
+          "pymss.tempo_key.tool": "BPM and key detection"
+        }
       },
       "zh-CN": {
         "title": "BPM 与调性检测",
@@ -699,14 +708,19 @@
           "速度",
           "调性",
           "BPM"
-        ]
+        ],
+        "operations": {
+          "pymss.tempo_key.analyze": "BPM 与调性分析",
+          "pymss.tempo_key.detect_bpm": "BPM 检测",
+          "pymss.tempo_key.tool": "BPM 与调性检测"
+        }
       }
     },
     "requirements": {
       "sdkVersion": 1,
       "requiredCapabilities": [
         "app.info",
-        "audio.analyze",
+        "operations.start",
         "clipboard.writeText",
         "files.pickAudio",
         "files.pickDirectory",

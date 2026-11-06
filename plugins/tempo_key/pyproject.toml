@@ -1,21 +1,33 @@
 [project]
 name = "pymss-plugin-tempo_key"
-version = "0.2.1"
-description = "Studio tempo_key audio tool"
+version = "0.3.0"
+description = "BPM and key analysis with the packaged rba CLI"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["av>=14"]
 
 [tool.pymss.plugin]
 id = "pymss.tempo_key"
 api_version = 2
-requires_pymss = ">=2.2"
+requires_pymss = ">=2.3.0"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.tempo_key.analyze"
+title = "BPM and Key Analysis"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.tempo_key.detect_bpm"
+title = "BPM Detection"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.tempo_key.tool"
+title = "BPM and Key Detection"
 
 [tool.pymss.studio]
 
 sdk_version = 1
 required_capabilities = [
     "app.info",
-    "audio.analyze",
+    "operations.start",
     "clipboard.writeText",
     "files.pickAudio",
     "files.pickDirectory",
@@ -33,10 +45,20 @@ icon = "PulseOutline"
 title = "Tempo and key"
 description = "Detect tempo and musical key for beat and tonal analysis."
 
+[tool.pymss.studio.locales."en".operations]
+"pymss.tempo_key.analyze" = "BPM and key analysis"
+"pymss.tempo_key.detect_bpm" = "BPM detection"
+"pymss.tempo_key.tool" = "BPM and key detection"
+
 [tool.pymss.studio.locales."zh-CN"]
 title = "BPM 与调性检测"
 description = "检测音频速度与调性，辅助节拍和调式分析。"
 tags = ["速度", "调性", "BPM"]
+
+[tool.pymss.studio.locales."zh-CN".operations]
+"pymss.tempo_key.analyze" = "BPM 与调性分析"
+"pymss.tempo_key.detect_bpm" = "BPM 检测"
+"pymss.tempo_key.tool" = "BPM 与调性检测"
 
 [[tool.pymss.studio.views]]
 id = "tool"
@@ -44,5 +66,6 @@ title = "Tempo Key"
 entry = "ui/dist/index.html"
 component = "ui/src/TempoKeyTool.vue"
 placements = ["tool"]
-permissions = ["ui.overlay", "files", "settings", "app.info", "clipboard.writeText", "audio.analyze", "operations.cancel"]
+operation = "pymss.tempo_key.tool"
+permissions = ["ui.overlay", "files", "settings", "app.info", "clipboard.writeText", "operations"]
 file_tool = "tempo_key"

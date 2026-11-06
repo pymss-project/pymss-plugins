@@ -1,0 +1,10 @@
+{
+  "version": "0.2.1",
+  "target": "darwin-arm64",
+  "asset": "rba-0.2.1-macOS-arm64",
+  "sha256": "45dcd30064d022ea73939b13a0eb96a80489a787daf4b754134efbb558159b86",
+  "license": "GPL-3.0",
+  "sourceCommit": "631319291b85c25d130daa417b001136df0ea46b",
+  "source": "https://github.com/SUC-DriverOld/rba/tree/631319291b85c25d130daa417b001136df0ea46b",
+  "sourceArchive": "https://github.com/SUC-DriverOld/rba/archive/631319291b85c25d130daa417b001136df0ea46b.tar.gz"
+}
