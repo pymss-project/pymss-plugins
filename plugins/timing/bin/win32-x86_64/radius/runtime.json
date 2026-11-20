@@ -1,13 +1,13 @@
 {
-  "version": "0.3.1",
+  "version": "0.4.0",
   "packageVersion": "0.3.0",
   "target": "win32-x86_64",
-  "asset": "radius-0.3.1-windows-x64.exe",
-  "sha256": "14ba8605aa85dda8fe8a03e183550ca9abbc2a2e94e47a207009383631f04e5d",
+  "asset": "radius-0.4.0-windows-x64.exe",
+  "sha256": "17eff7157f1b84c18cd5f49f035a6a1a5db90f39b5755c3b9e052686a9a3bfd6",
   "license": "LGPL-3.0-or-later",
-  "sourceCommit": "696dba8acb900a87897e42e9b2d0ea4c4521bfb1",
-  "source": "https://github.com/SUC-DriverOld/radius-rs/tree/696dba8acb900a87897e42e9b2d0ea4c4521bfb1",
-  "sourceArchive": "https://github.com/SUC-DriverOld/radius-rs/archive/696dba8acb900a87897e42e9b2d0ea4c4521bfb1.tar.gz",
+  "sourceCommit": "46dc13e46debc4c035e2c9a01b857299ea10effe",
+  "source": "https://github.com/SUC-DriverOld/radius-rs/tree/46dc13e46debc4c035e2c9a01b857299ea10effe",
+  "sourceArchive": "https://github.com/SUC-DriverOld/radius-rs/archive/46dc13e46debc4c035e2c9a01b857299ea10effe.tar.gz",
   "requirements": {
     "cpuFeatures": [
       "avx",
