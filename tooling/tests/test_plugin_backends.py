@@ -535,16 +535,23 @@ class AudioToolModuleTests(unittest.TestCase):
             root = Path(temp_value)
             source = root / "source.wav"
             source.touch()
+            quiet = root / "quiet.wav"
+            quiet.touch()
+            (root / "subdirectory").mkdir()
+            submitted = str(root / "subdirectory" / ".." / "source.wav")
             output = root / "output"
             output.mkdir()
             with (
-                mock.patch.object(slicer, "_slice_intervals", return_value=[(0.5, 1.5), (2.0, 3.0)]),
+                mock.patch.object(slicer, "_slice_intervals", side_effect=[[(0.5, 1.5), (2.0, 3.0)], []]),
                 mock.patch.object(slicer, "_render_segment", side_effect=lambda source, target, *args: target.write_bytes(b'audio')) as render,
                 mock.patch.object(slicer, "emit"),
             ):
-                result = slicer._slice_audio({"inputs": [str(source)], "outputDir": str(output)})
+                result = slicer._slice_audio({"inputs": [submitted, str(quiet)], "outputDir": str(output)})
         self.assertEqual(render.call_count, 2)
         self.assertEqual(result["succeeded"], 2)
+        self.assertEqual(result["sourceCount"], 2)
+        self.assertEqual(result["processedInputs"], [submitted])
+        self.assertEqual({clip["sourcePath"] for clip in result["segments"]}, {str(source.resolve())})
         self.assertAlmostEqual(result["keptDuration"], 2.0)
         self.assertIn("00000500-00001500", Path(result["segments"][0]["outputPath"]).name)
 

@@ -141,8 +141,9 @@ def _slice_audio(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("No non-silent audio segments were detected")
     output_paths: list[str] = []
     segments: list[dict[str, Any]] = []
+    processed_inputs: list[str] = []
     written = 0
-    for input_path, intervals in analyzed:
+    for submitted_path, (input_path, intervals) in zip(raw_inputs, analyzed, strict=True):
         for index, (start, end) in enumerate(intervals, start=1):
             emit("audio_tool_progress", {
                 "operation": "slicer", "phase": "writing_segments",
@@ -154,12 +155,15 @@ def _slice_audio(payload: dict[str, Any]) -> dict[str, Any]:
             written += 1
             output_paths.append(str(output_path))
             segments.append({"sourcePath": str(input_path), "outputPath": str(output_path), "start": start, "end": end, "duration": end - start})
+        if intervals:
+            # The form identifies files by the submitted spelling, including aliases.
+            processed_inputs.append(str(submitted_path))
     emit("audio_tool_progress", {
         "operation": "slicer", "phase": "writing_segments",
         "completed": written, "total": total_segments, "current": "",
     })
     return {
         "operation": "slicer", "outputDir": str(output_dir), "outputPaths": output_paths,
-        "succeeded": written, "sourceCount": len(inputs), "segments": segments,
+        "succeeded": written, "sourceCount": len(inputs), "segments": segments, "processedInputs": processed_inputs,
         "keptDuration": sum(item["duration"] for item in segments),
     }

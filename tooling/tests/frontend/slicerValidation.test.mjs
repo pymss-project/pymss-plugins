@@ -8,7 +8,7 @@ import { parse } from 'vue/compiler-sfc'
 const source = parse(readFileSync(new URL('../../../plugins/slicer/ui/src/SlicerTool.vue', import.meta.url), 'utf8')).descriptor.scriptSetup.content
 const code = ts.transpileModule(`${source}\nexports.valid = valid; exports.run = run;`, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
 
-function slicer() {
+function slicer(completion) {
   const values = new Map(), calls = [], exports = {}
   vm.runInNewContext(code, {
     exports,
@@ -18,7 +18,10 @@ function slicer() {
       'vue-i18n': { useI18n: () => ({ t: key => key }) },
       'naive-ui': { useMessage: () => ({ error() {} }) },
       '@/stores/settings': { useSettingsStore: () => ({ outputDir: '/output' }) },
-      '@/features/audio-tools/runtime': { useAudioToolRuntime: () => ({ stateFor: () => ({}), execute: (...args) => calls.push(args) }) },
+      '@/features/audio-tools/runtime': { useAudioToolRuntime: () => ({
+        stateFor: () => ({}),
+        execute: (...args) => { calls.push(args); return completion?.() },
+      }) },
       '@/features/audio-tools/useAudioInputDrop': { useAudioInputDrop: () => ({ dropZone: { value: null }, dragging: { value: false }, scanning: { value: false } }) },
     })[name] || {},
   })
@@ -58,4 +61,32 @@ test('slicer requires integer timings and preserves the ordering constraints', (
   values.get('hopSize').value = 10
   values.get('threshold').value = 0
   assert.equal(valid.value, true)
+})
+
+test('slicer only clears submitted inputs that produced clips, including paths resolved by the backend', async () => {
+  const selected = ['/audio/session/../normal.wav', '/audio/quiet.wav']
+  let finish
+  const { run, values, calls } = slicer(() => new Promise(resolve => { finish = resolve }))
+  const inputs = values.get('inputs')
+  inputs.value = [...selected]
+  const task = run()
+  inputs.value.push('/audio/next.wav')
+  assert.deepEqual(Array.from(calls[0][1].inputs), selected)
+  finish({
+    operation: 'slicer', sourceCount: 2, processedInputs: [selected[0]],
+    segments: [{ sourcePath: '/audio/normal.wav' }],
+  })
+  await task
+  assert.deepEqual(Array.from(inputs.value), [selected[1], '/audio/next.wav'])
+})
+
+test('slicer preserves inputs after cancellation or a result with no clips', async () => {
+  const selected = ['/audio/quiet.wav']
+  for (const result of [null, { operation: 'slicer', sourceCount: 1, processedInputs: [], segments: [] }]) {
+    const { run, values } = slicer(() => result)
+    const inputs = values.get('inputs')
+    inputs.value = [...selected]
+    await run()
+    assert.deepEqual(Array.from(inputs.value), selected)
+  }
 })

@@ -30,9 +30,9 @@ async function run() {
   if (!valid.value) return void message.error(t('tools.slicerParameterError'))
   const submitted = new Set(inputs.value)
   const result = await runtime.execute('slicer', { inputs: [...submitted], outputDir: outputDir.value, outputFormat: outputFormat.value, threshold: threshold.value, minLength: minLength.value, minInterval: minInterval.value, hopSize: hopSize.value, maxSilKept: maxSilKept.value })
-  if (result?.operation === 'slicer' && result.sourceCount === submitted.size && result.segments.length > 0) {
-    inputs.value = inputs.value.filter(path => !submitted.has(path))
-  }
+  if (result?.operation !== 'slicer') return
+  const processed = new Set(result.processedInputs ?? result.segments.map(segment => segment.sourcePath))
+  if (processed.size) inputs.value = inputs.value.filter(path => !submitted.has(path) || !processed.has(path))
 }
 function seconds(value: number) { return `${value.toFixed(2)} s` }
 const { dropZone: inputDropZone, dragging: inputDragging, scanning: inputScanning } = useAudioInputDrop({ disabled: () => state.value.anyBusy, accept: add })

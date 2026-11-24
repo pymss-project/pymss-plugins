@@ -67,7 +67,7 @@ HOST = r"""({url, dark, platform, machine}) => {
     convert: {operation:'convert',outputDir:'/output',outputPaths:['/output/source.ogg','/output/second.ogg'],succeeded:2,failed:[]},
     inspect: {operation:'inspect', inputPath:'/audio/source.wav', fileName:'source.wav', fileSize:88200, format:{name:'WAV', longName:'WAV', duration:12.5, bitRate:1411200, tags:{artist:'Studio'}}, audioStreams:[], raw:{codec:'pcm_s16le'}},
     sdr: {operation:'sdr', sdr:[12.4], averageSdr:12.4, siSdr:[13.2], averageSiSdr:13.2, sampleRate:44100, referencePath:'/audio/reference.wav', estimatedPath:'/audio/estimated.wav'},
-    slicer: {operation:'slicer', sourceCount:2, segments:[{outputPath:'/output/clip.wav', start:0, end:2.5}], keptDuration:2.5, outputDir:'/output'},
+    slicer: {operation:'slicer', sourceCount:2, processedInputs:['/audio/source.wav','/audio/second.wav'], segments:[{sourcePath:'/audio/source.wav', outputPath:'/output/clip.wav', start:0, end:2.5}, {sourcePath:'/audio/second.wav', outputPath:'/output/second_clip.wav', start:0, end:2.5}], keptDuration:5, outputDir:'/output'},
     merge: {operation:'merge', succeeded:2, merged:2, outputPath:'/output/merged.wav', outputDir:'/output'},
     loudness: {operation:'loudness', succeeded:1, failed:[{path:'/audio/second.wav',message:'Input audio is unavailable'}], outputDir:'/output', measurement:'rms', target:-16, measurements:[{path:'/output/source.wav',inputLevel:-20,outputLevel:-16,target:-16,unit:'dB',withinTolerance:true}]},
     asr: {operation:'asr', succeeded:1, inputPath:'/audio/source.wav', text:'测试转写', sentences:[{start:0,end:1,text:'测试'}], segmentCount:1, outputPath:'/output/source.srt', outputDir:'/output'},
@@ -248,7 +248,7 @@ def run_slicer(page, frame):
     click_text(frame, r"Slice audio")
     wait_for_success(page, "slicer")
     assert_start_contract(page, "slicer")
-    expect(frame.get_by_text("clip.wav")).to_be_visible()
+    expect(frame.get_by_text("clip.wav", exact=True)).to_be_visible()
     expect(frame.locator(".audio-tool-files")).to_have_count(0)
 
 

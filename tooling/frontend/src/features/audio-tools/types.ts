@@ -88,6 +88,7 @@ export type InspectResult = AudioToolResultBase & {
 export type SliceSegment = { sourcePath: string; outputPath: string; start: number; end: number; duration: number }
 export type SlicerResult = AudioToolResultBase & {
   operation: 'slicer'; sourceCount: number; segments: SliceSegment[]; keptDuration: number
+  processedInputs?: string[]
 }
 export type AsrSentence = { start: number; end: number; text: string }
 export type AsrResult = AudioToolResultBase & {
