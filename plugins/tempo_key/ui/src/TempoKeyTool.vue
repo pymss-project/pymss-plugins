@@ -10,6 +10,7 @@ import { CloseCircleOutline, CopyOutline, DocumentOutline, FolderOpenOutline, Pu
 import AudioToolPanel from '@/features/audio-tools/shared/AudioToolPanel.vue'
 import AudioToolHeader from '@/features/audio-tools/shared/AudioToolHeader.vue'
 import { knownFailure, useAudioToolRuntime } from '@/features/audio-tools/runtime'
+import { remainingBatchInputs } from '@/features/audio-tools/batchInputs'
 import type { AudioToolFailure, TempoKeyItem } from '@/features/audio-tools/types'
 
 type ScanResult = { files: string[]; warnings: string[] }
@@ -36,7 +37,11 @@ async function pickFolder() {
   else message.info(t(result.files?.length ? 'tools.folderAlreadyAdded' : 'tools.folderEmpty'))
   if (result.warnings?.length) message.warning(t('tools.folderScanWarnings', { count: result.warnings.length }))
 }
-function run() { void runtime.execute('tempo_key', { inputs: inputs.value }) }
+async function run() {
+  const submitted = new Set(inputs.value)
+  const result = await runtime.execute('tempo_key', { inputs: [...submitted] })
+  if (result?.operation === 'tempo_key') inputs.value = remainingBatchInputs(inputs.value, submitted, result)
+}
 // rba reports libKeyFinder names ("Bb minor"); "silence" means no tonal content.
 function keyLabel(key: string) { return key === 'silence' ? t('tools.tempo_keySilence') : key }
 // Known per-file codes are localized; anything else keeps the backend message.

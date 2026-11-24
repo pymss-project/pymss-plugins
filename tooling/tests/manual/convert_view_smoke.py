@@ -30,8 +30,20 @@ def main():
             try:
                 expect(frame.locator(".audio-tool-card--main")).to_be_visible()
                 expect(frame.locator(".audio-tool-card--side")).to_have_count(0)
+                position = frame.locator(".audio-tool-header").evaluate(
+                    "el => { const r=el.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2} }"
+                )
+                page.evaluate(
+                    "position => document.getElementById('plugin').contentWindow.postMessage({jsonrpc:'2.0',method:'host.filesDrop',params:{type:'drop',position,paths:['/audio']}}, '*')",
+                    position,
+                )
+                expect(frame.locator(".audio-tool-files > div")).to_have_count(2)
+                assert page.evaluate(
+                    "bridge.requests.some(x=>x.method==='files.scanAudio' && x.params.paths[0]==='/audio')"
+                )
+                passed.append("page-header-drop-imports-audio-folder")
                 frame.get_by_role(
-                    "button", name="Choose audio files", exact=True
+                    "button", name="Add more files", exact=True
                 ).click()
                 frame.get_by_role("button", name="Add input folder", exact=True).click()
                 expect(frame.locator(".audio-tool-files > div")).to_have_count(2)
@@ -62,6 +74,25 @@ def main():
                     "source.ogg"
                 )
                 passed.append("batch-operation-progress-and-results")
+                expect(frame.locator(".audio-tool-files > div")).to_have_count(0)
+                expect(frame.locator(".audio-tool-actions button")).to_be_disabled()
+                passed.append("successful-conversion-clears-inputs-and-keeps-results")
+                page.wait_for_function("bridge.settings.form?.inputs?.length===0")
+                settings_reads = page.evaluate(
+                    "bridge.requests.filter(x=>x.method==='settings.read').length"
+                )
+                page.locator("#plugin").evaluate("frame=>{frame.src=frame.src}")
+                page.wait_for_function(
+                    "count=>bridge.requests.filter(x=>x.method==='settings.read').length>count",
+                    arg=settings_reads,
+                )
+                expect(frame.locator(".audio-tool-files > div")).to_have_count(0)
+                expect(frame.locator(".n-select").nth(0)).to_contain_text("OGG")
+                passed.append("cleared-inputs-survive-component-remount")
+                frame.get_by_role(
+                    "button", name="Choose audio files", exact=True
+                ).click()
+                expect(frame.locator(".audio-tool-files > div")).to_have_count(2)
                 page.evaluate("bridge.cancelNext=true")
                 frame.locator(".audio-tool-actions button").click()
                 frame.locator(".tool-log-button").click()
@@ -71,12 +102,14 @@ def main():
                     "bridge.requests.some(x=>x.method==='operations.cancel')"
                 )
                 expect(frame.locator(".audio-tool-card--side")).to_contain_text("Cancelled")
+                expect(frame.locator(".audio-tool-files > div")).to_have_count(2)
                 passed.append("owned-cancellation-waits-for-terminal-response")
                 page.evaluate("bridge.failNext=true")
                 frame.locator(".audio-tool-actions button").click()
                 expect(frame.locator(".audio-tool-card--side")).to_contain_text(
                     "Input audio is unavailable"
                 )
+                expect(frame.locator(".audio-tool-files > div")).to_have_count(2)
                 passed.append("failure-clears-previous-results")
                 page.locator("#plugin").evaluate("(frame)=>{frame.src=frame.src}")
                 expect(frame.locator(".audio-tool-files > div")).to_have_count(2)

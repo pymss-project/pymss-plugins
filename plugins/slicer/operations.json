@@ -25,6 +25,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.slicer",
-  "pluginVersion": "0.2.1",
-  "sourceDigest": "c587e46e6f0540ff1d9fa9834fde2387d74884293ab0a9ec15723eb56a54b473"
+  "pluginVersion": "0.2.2",
+  "sourceDigest": "63da9e47c652f2afbb8c4b25a7f7b5d41a8163fffca6089d23ebcfa7261d6115"
 }

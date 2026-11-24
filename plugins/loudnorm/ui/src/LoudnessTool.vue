@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/stores/settings'
 import AudioToolPanel from '@/features/audio-tools/shared/AudioToolPanel.vue'
 import AudioToolHeader from '@/features/audio-tools/shared/AudioToolHeader.vue'
 import { useAudioToolRuntime } from '@/features/audio-tools/runtime'
+import { remainingBatchInputs } from '@/features/audio-tools/batchInputs'
 import { loadAudioToolsState, updateAudioToolsState } from '@/features/audio-tools/state'
 
 type ScanResult = { files: string[]; warnings: string[] }
@@ -158,10 +159,11 @@ async function pickReference() {
   const value = await invoke<string | null>('pick_single_audio_file')
   if (value) referencePath.value = value
 }
-function run() {
+async function run() {
   if ((showsReference.value && !referencePath.value) || !parametersComplete.value) return
-  void runtime.execute('loudness', {
-    inputs: inputs.value,
+  const submitted = new Set(inputs.value)
+  const result = await runtime.execute('loudness', {
+    inputs: [...submitted],
     outputDir: outputDir.value,
     measurement: measurement.value,
     target: target.value,
@@ -172,6 +174,7 @@ function run() {
     release: release.value,
     referencePath: referencePath.value,
   })
+  if (result?.operation === 'loudness') inputs.value = remainingBatchInputs(inputs.value, submitted, result)
 }
 function measurementLabel(value: string) {
   const resolved = measurementAliases[value] || value

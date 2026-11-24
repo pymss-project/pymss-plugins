@@ -13,7 +13,10 @@ import { useAudioToolRuntime } from '@/features/audio-tools/runtime'
 import { useAudioInputDrop } from '@/features/audio-tools/useAudioInputDrop'
 import type { AudioStreamInfo } from '@/features/audio-tools/types'
 const { t } = useI18n(); const message = useMessage(); const runtime = useAudioToolRuntime(); const state = runtime.stateFor('inspect'); const inputPath = toolRef('inputPath', '')
-async function inspect(path: string) { await runtime.execute('inspect', { inputPath: path }) }
+async function inspect(path: string) {
+  const result = await runtime.execute('inspect', { inputPath: path })
+  if (result?.operation === 'inspect' && inputPath.value === path) inputPath.value = ''
+}
 async function pick() { const path = await invoke<string | null>('pick_single_audio_file'); if (path) { inputPath.value = path; await inspect(path) } }
 function run() { void inspect(inputPath.value) }
 function size(value: number) { const units = ['B', 'KB', 'MB', 'GB']; let amount = value; let unit = 0; while (amount >= 1024 && unit < units.length - 1) { amount /= 1024; unit += 1 } return `${amount.toFixed(unit ? 2 : 0)} ${units[unit]}` }

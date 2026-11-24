@@ -112,6 +112,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.spectral",
-  "pluginVersion": "0.2.1",
-  "sourceDigest": "72b7d1a6e19c8e62871f5623a13c23cbe43bc8b59e8f4f9866d395e1c59b8121"
+  "pluginVersion": "0.2.2",
+  "sourceDigest": "f7752dbf240cbfb98fb0641d0b3eaf1eb812ed92c94aa1c65dad9d8b05e4d267"
 }

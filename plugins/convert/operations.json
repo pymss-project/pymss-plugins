@@ -95,6 +95,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.convert",
-  "pluginVersion": "0.2.1",
-  "sourceDigest": "5f960b0c26a4183fdb53708b22bb167a22458eb79db0d993186ff000ce7ce1ca"
+  "pluginVersion": "0.2.2",
+  "sourceDigest": "090ed26a5e92f69171a9cba5f8624b4d832859af5ef9f04d90a6cc6c769663a1"
 }

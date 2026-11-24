@@ -172,6 +172,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.timing",
-  "pluginVersion": "0.4.0",
-  "sourceDigest": "0c9a437c842f3e54c44c68fb8adc30b6c2b1a65ee18f128b914f91d37e458117"
+  "pluginVersion": "0.4.1",
+  "sourceDigest": "db0d5a3780819a4976f468dc4e702f9fff75b9c81fd60327aeca6f59d0f43669"
 }

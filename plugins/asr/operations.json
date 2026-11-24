@@ -71,6 +71,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.asr",
-  "pluginVersion": "0.3.2",
-  "sourceDigest": "e6a28ecba3c21977c7b4c0b35963f9f5627a0d35bfddb1d8b33ae102e9252030"
+  "pluginVersion": "0.3.3",
+  "sourceDigest": "90aa39aa7c817fc543382eab65df75173238fb2e151d4369c0a85f97eb1fe146"
 }

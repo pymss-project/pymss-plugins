@@ -53,6 +53,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.loudnorm",
-  "pluginVersion": "0.4.1",
-  "sourceDigest": "0af3336d3d028d802f633821c0a10f84d24afa8b04d145f0d3fac88db96ae7b7"
+  "pluginVersion": "0.4.2",
+  "sourceDigest": "6e2b39f90efac8162a69587300de64d4543ee73dc0aad797c102557141a6514a"
 }

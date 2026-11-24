@@ -10,7 +10,14 @@ import { useAudioToolRuntime } from '@/features/audio-tools/runtime'
 const { t } = useI18n(); const runtime = useAudioToolRuntime(); const state = runtime.stateFor('sdr')
 const referencePath = toolRef('referencePath', ''); const estimatedPath = toolRef('estimatedPath', '')
 async function pick(target: 'reference' | 'estimated') { const path = await invoke<string | null>('pick_single_audio_file'); if (!path) return; if (target === 'reference') referencePath.value = path; else estimatedPath.value = path }
-function run() { void runtime.execute('sdr', { referencePath: referencePath.value, estimatedPath: estimatedPath.value }) }
+async function run() {
+  const reference = referencePath.value
+  const estimated = estimatedPath.value
+  const result = await runtime.execute('sdr', { referencePath: reference, estimatedPath: estimated })
+  if (result?.operation !== 'sdr') return
+  if (referencePath.value === reference) referencePath.value = ''
+  if (estimatedPath.value === estimated) estimatedPath.value = ''
+}
 </script>
 <template><AudioToolPanel tool="sdr" :status-title="t('tools.analysisResult')" :status-hint="t('tools.sdrResultHint')">
   <AudioToolHeader :icon="AnalyticsOutline" :title="t('tools.sdrTitle')" :description="t('tools.sdrDescription')" />

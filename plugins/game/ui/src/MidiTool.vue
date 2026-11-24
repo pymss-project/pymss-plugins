@@ -53,13 +53,15 @@ async function detectBpm() {
     detectingBpm.value = false
   }
 }
-function run() {
+async function run() {
   if (!validBpm.value || !modelReady.value || detectingBpm.value) return
-  void runtime.execute('midi', {
-    inputPath: inputPath.value, modelPath: isAppleSilicon.value && !useLocalMlxModel.value ? '' : modelPath.value, outputDir: outputDir.value,
+  const path = inputPath.value
+  const result = await runtime.execute('midi', {
+    inputPath: path, modelPath: isAppleSilicon.value && !useLocalMlxModel.value ? '' : modelPath.value, outputDir: outputDir.value,
     modelAlias: modelAlias.value,
     bpm: bpm.value, language: language.value,
   })
+  if (result?.operation === 'midi' && result.action !== 'detect_bpm' && inputPath.value === path) inputPath.value = ''
 }
 watch(() => settings.outputDir, value => { if (!outputDir.value) outputDir.value = value })
 </script>

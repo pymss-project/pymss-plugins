@@ -80,15 +80,17 @@ async function pickOutput() {
   if (path) outputDir.value = path
 }
 
-function run() {
-  if (!inputDir.value || !outputDir.value || regexError.value || directoryError.value) return
-  void runtime.execute('merge', {
-    inputDir: inputDir.value,
+async function run() {
+  const directory = inputDir.value
+  if (!directory || !outputDir.value || regexError.value || directoryError.value) return
+  const result = await runtime.execute('merge', {
+    inputDir: directory,
     outputDir: outputDir.value,
     sortBy: sortBy.value,
     sortDirection: sortDirection.value,
     regexPattern: sortBy.value === 'regex' ? regexPattern.value : '',
   })
+  if (result?.operation === 'merge' && result.merged && !result.skipped?.length && inputDir.value === directory) inputDir.value = ''
 }
 const { dropZone: inputDropZone, dragging: inputDragging, scanning: inputScanning } = useAudioInputDrop({ disabled: () => state.value.anyBusy, mode: 'directory', accept: (_files, paths) => { inputDir.value = paths[0]! } })
 </script>

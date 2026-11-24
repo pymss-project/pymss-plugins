@@ -250,7 +250,10 @@ function showModelRecoveryDialog(recovery: AudioToolRecovery, payload: Record<st
 async function executeAsr(payload: Record<string, unknown>) {
   pendingRecoveryPayload.value = payload
   const result = await runtime.execute('asr', payload)
-  if (result) pendingRecoveryPayload.value = null
+  if (result?.operation === 'asr') {
+    pendingRecoveryPayload.value = null
+    if (inputPath.value === payload.inputPath) inputPath.value = ''
+  }
 }
 
 async function redownloadModelsAndRetry(recovery: AudioToolRecovery, payload: Record<string, unknown>) {

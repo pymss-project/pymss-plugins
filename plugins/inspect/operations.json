@@ -25,6 +25,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.inspect",
-  "pluginVersion": "0.2.1",
-  "sourceDigest": "5fee79321f66d5a7271419c6af4b5d530b5289d0944ed788076377e69b2015cf"
+  "pluginVersion": "0.2.2",
+  "sourceDigest": "29a4b459bff35beb01af8a57dc7122a05278930fc7ddea7b32326fda46f8d82c"
 }

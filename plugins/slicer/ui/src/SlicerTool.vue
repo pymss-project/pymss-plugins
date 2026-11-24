@@ -26,7 +26,14 @@ function add(paths: string[]) { const current = new Set(inputs.value); inputs.va
 async function pickFiles() { add(await invoke<string[]>('pick_audio_files') || []) }
 async function pickFolder() { const folder = await invoke<string | null>('pick_input_folder'); if (!folder) return; const result = await invoke<ScanResult>('scan_audio_paths_with_options', { paths: [folder], recursive: true, sortFiles: true }); const before = inputs.value.length; add(result.files || []); message.info(t(inputs.value.length > before ? 'tools.folderScanned' : 'tools.folderEmpty', { count: inputs.value.length - before })) }
 async function pickOutput() { const path = await invoke<string | null>('pick_output_folder'); if (path) outputDir.value = path }
-function run() { if (!valid.value) return void message.error(t('tools.slicerParameterError')); void runtime.execute('slicer', { inputs: inputs.value, outputDir: outputDir.value, outputFormat: outputFormat.value, threshold: threshold.value, minLength: minLength.value, minInterval: minInterval.value, hopSize: hopSize.value, maxSilKept: maxSilKept.value }) }
+async function run() {
+  if (!valid.value) return void message.error(t('tools.slicerParameterError'))
+  const submitted = new Set(inputs.value)
+  const result = await runtime.execute('slicer', { inputs: [...submitted], outputDir: outputDir.value, outputFormat: outputFormat.value, threshold: threshold.value, minLength: minLength.value, minInterval: minInterval.value, hopSize: hopSize.value, maxSilKept: maxSilKept.value })
+  if (result?.operation === 'slicer' && result.sourceCount === submitted.size && result.segments.length > 0) {
+    inputs.value = inputs.value.filter(path => !submitted.has(path))
+  }
+}
 function seconds(value: number) { return `${value.toFixed(2)} s` }
 const { dropZone: inputDropZone, dragging: inputDragging, scanning: inputScanning } = useAudioInputDrop({ disabled: () => state.value.anyBusy, accept: add })
 </script>

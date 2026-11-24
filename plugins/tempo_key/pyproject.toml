@@ -1,6 +1,6 @@
 [project]
 name = "pymss-plugin-tempo_key"
-version = "0.3.0"
+version = "0.3.1"
 description = "BPM and key analysis with the packaged rba CLI"
 requires-python = ">=3.10"
 dependencies = ["av>=14"]

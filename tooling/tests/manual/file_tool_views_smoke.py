@@ -69,10 +69,10 @@ HOST = r"""({url, dark, platform, machine}) => {
     sdr: {operation:'sdr', sdr:[12.4], averageSdr:12.4, siSdr:[13.2], averageSiSdr:13.2, sampleRate:44100, referencePath:'/audio/reference.wav', estimatedPath:'/audio/estimated.wav'},
     slicer: {operation:'slicer', sourceCount:2, segments:[{outputPath:'/output/clip.wav', start:0, end:2.5}], keptDuration:2.5, outputDir:'/output'},
     merge: {operation:'merge', succeeded:2, merged:2, outputPath:'/output/merged.wav', outputDir:'/output'},
-    loudness: {operation:'loudness', succeeded:1, outputDir:'/output', measurement:'rms', target:-16, measurements:[{path:'/output/source.wav',inputLevel:-20,outputLevel:-16,target:-16,unit:'dB',withinTolerance:true}]},
+    loudness: {operation:'loudness', succeeded:1, failed:[{path:'/audio/second.wav',message:'Input audio is unavailable'}], outputDir:'/output', measurement:'rms', target:-16, measurements:[{path:'/output/source.wav',inputLevel:-20,outputLevel:-16,target:-16,unit:'dB',withinTolerance:true}]},
     asr: {operation:'asr', succeeded:1, inputPath:'/audio/source.wav', text:'测试转写', sentences:[{start:0,end:1,text:'测试'}], segmentCount:1, outputPath:'/output/source.srt', outputDir:'/output'},
     midi: {operation:'midi', succeeded:1, bpm:120, roundedBpm:120, action:'transcribe', inputDuration:8, firstNoteAt:0, lastNoteAt:7, noteCount:8, outputPath:'/output/source.mid', outputDir:'/output'},
-    tempo_key: {operation:'tempo_key', succeeded:1, items:[{path:'/audio/source.wav', fileName:'source.wav', bpm:120, key:'C major', duration:12.5}]},
+    tempo_key: {operation:'tempo_key', succeeded:2, items:[{path:'/audio/source.wav', fileName:'source.wav', bpm:120, key:'C major', duration:12.5}, {path:'/audio/second.wav', fileName:'second.wav', bpm:118, key:'A minor', duration:12.5}]},
   })[operation] || {operation, succeeded:1};
   window.addEventListener('message', event => {
     if (event.source !== frame.contentWindow || event.data?.jsonrpc !== '2.0') return;
@@ -226,6 +226,7 @@ def run_inspect(page, frame):
     expect(frame.get_by_text("Studio", exact=True)).to_be_visible()
     frame.get_by_text("Raw FFprobe data", exact=True).click()
     expect(frame.locator("pre")).to_contain_text("pcm_s16le")
+    expect(frame.locator('[data-guide="tool-input"] input')).to_have_value("")
 
 
 def run_sdr(page, frame):
@@ -235,6 +236,8 @@ def run_sdr(page, frame):
     wait_for_success(page, "sdr")
     assert_start_contract(page, "sdr")
     expect(frame.get_by_text("12.4 dB", exact=True)).to_be_visible()
+    for field in frame.locator(".audio-tool-path input").all():
+        expect(field).to_have_value("")
 
 
 def run_slicer(page, frame):
@@ -246,6 +249,7 @@ def run_slicer(page, frame):
     wait_for_success(page, "slicer")
     assert_start_contract(page, "slicer")
     expect(frame.get_by_text("clip.wav")).to_be_visible()
+    expect(frame.locator(".audio-tool-files")).to_have_count(0)
 
 
 def run_merge(page, frame):
@@ -257,6 +261,7 @@ def run_merge(page, frame):
     wait_for_success(page, "merge")
     assert_start_contract(page, "merge")
     expect(frame.get_by_text("merged.wav")).to_be_visible()
+    expect(frame.locator('[data-guide="tool-input"] input')).to_have_value("")
 
 
 def run_loudness(page, frame):
@@ -270,6 +275,7 @@ def run_loudness(page, frame):
     wait_for_success(page, "loudness")
     assert_start_contract(page, "loudness")
     expect(frame.get_by_text("Measured output: -16.00 dB", exact=True)).to_be_visible()
+    expect(frame.locator(".audio-tool-files")).to_have_text("second.wav")
 
 
 def run_asr(page, frame):
@@ -282,6 +288,7 @@ def run_asr(page, frame):
     wait_for_success(page, "asr")
     assert_start_contract(page, "asr")
     expect(frame.get_by_text("测试转写")).to_be_visible()
+    expect(frame.locator('[data-guide="tool-input"] input')).to_have_value("")
     click_text(frame, r"Uninstall component")
     dialog = frame.get_by_role("dialog")
     expect(dialog).to_contain_text("model")
@@ -302,6 +309,7 @@ def run_midi(page, frame):
     assert_start_contract(page, "midi", analysis=True)
     bpm = frame.locator(".n-input-number input")
     expect(bpm).to_have_value("120")
+    expect(frame.locator('[data-guide="tool-input"] input')).to_have_value("/audio/source.wav")
     bpm.fill("137")
     bpm.press("Tab")
     for code, text in [("TEMPO_KEY_TOO_SHORT", "requires at least 30 seconds"),
@@ -324,6 +332,7 @@ def run_midi(page, frame):
     assert_start_contract(page, "midi")
     request = page.evaluate("bridge.requests.filter(x=>x.method==='operations.start'&&x.params.operation==='pymss.game.tool').at(-1)")
     assert request["params"]["inputs"]["request"]["bpm"] == 137
+    expect(frame.locator('[data-guide="tool-input"] input')).to_have_value("")
 
 
 def run_tempo(page, frame):
@@ -332,21 +341,24 @@ def run_tempo(page, frame):
     wait_for_success(page, "tempo_key")
     assert_start_contract(page, "tempo_key", analysis=True)
     expect(frame.get_by_text("C major")).to_be_visible()
+    expect(frame.locator(".audio-tool-files")).to_have_count(0)
+    click_text(frame, r"Choose audio files")
     # A real cancel button must propagate the dedicated TASK_CANCELLED code.
     cancel_once(page, frame, "tempo_key", analysis=True)
     expect(frame.locator(".tool-activity-dialog")).to_be_hidden()
     expect(frame.get_by_text("Cancelled", exact=True)).to_be_visible()
+    expect(frame.locator(".audio-tool-files")).to_contain_text("source.wav")
     # A cancelled task releases the page for another analysis.
     previous = page.evaluate("bridge.requests.filter(x=>x.method==='operations.start').length")
     click_text(frame, r"Start detection")
     page.wait_for_function("previous => bridge.requests.filter(x=>x.method==='operations.start').length > previous", arg=previous)
-    expect(frame.get_by_role("button", name="Start detection", exact=True)).to_be_enabled()
     expect(frame.get_by_text("C major")).to_be_visible()
+    expect(frame.get_by_role("button", name="Start detection", exact=True)).to_be_disabled()
 
 
 def run_macos_asr(page, frame):
     frame.locator(".n-select").first.click()
-    expect(frame.locator(".n-base-select-option")).to_have_count(3)
+    expect(frame.locator(".n-base-select-option")).to_have_count(2)
     page.keyboard.press("Escape")
     expect(
         frame.locator(".n-checkbox--disabled").filter(has_text="SRT")
@@ -361,6 +373,7 @@ def run_macos_asr(page, frame):
     assert request["modelPreset"] == "paraformer-zh", request
     assert "srt" not in request["outputFormats"], request
     expect(frame.get_by_text("测试转写")).to_be_visible()
+    expect(frame.locator('[data-guide="tool-input"] input')).to_have_value("")
 
 
 def main():

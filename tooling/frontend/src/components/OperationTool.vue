@@ -96,7 +96,8 @@ function chooseEnum(name: string, values: unknown[], index: number | null) { if 
 async function run() {
   const definition = spec.value
   if (!canRun.value || !definition) return
-  const snapshot = { operation: definition.id, inputs: Object.fromEntries(audioInputs.value.map(name => [name, definition.inputs[name]?.type === 'file' ? paths.value[name].trim() : { kind: 'file', path: paths.value[name].trim() }])), params: Object.fromEntries(Object.entries(params.value).filter(([, value]) => value !== undefined && value !== null && value !== '')), ...(definition.specDigest ? { expectedSpecDigest: definition.specDigest } : {}), ...(props.config.outputDirectory && outputDir.value.trim() ? { outputDir: outputDir.value.trim() } : {}) }
+  const submitted = Object.fromEntries(audioInputs.value.map(name => [name, paths.value[name]]))
+  const snapshot = { operation: definition.id, inputs: Object.fromEntries(Object.entries(submitted).map(([name, path]) => [name, definition.inputs[name]?.type === 'file' ? path.trim() : { kind: 'file', path: path.trim() }])), params: Object.fromEntries(Object.entries(params.value).filter(([, value]) => value !== undefined && value !== null && value !== '')), ...(definition.specDigest ? { expectedSpecDigest: definition.specDigest } : {}), ...(props.config.outputDirectory && outputDir.value.trim() ? { outputDir: outputDir.value.trim() } : {}) }
   error.value = ''; results.value = null; cancelled.value = false; progress.value = null; running.value = true
   progressMessage.value = ''; elapsed.value = 0
   activity.value = []; recordActivity(t('pluginTools.running'))
@@ -113,6 +114,7 @@ async function run() {
     if (disposed) return
     if (response?.operation !== snapshot.operation || !record(response.outputs)) throw new Error(t('pluginTools.operationMismatch'))
     results.value = response.outputs; error.value = ''; progress.value = 1
+    paths.value = Object.fromEntries(Object.entries(paths.value).filter(([name, path]) => submitted[name] !== path))
     recordActivity(t('pluginTools.completed'))
   } catch (failure) {
     if (disposed) return
@@ -164,7 +166,7 @@ onBeforeUnmount(() => { disposed = true; generation += 1; stopElapsed() })
       <n-select id="operation" v-model:value="operationId" :disabled="running" :options="config.operations.map(item => ({ label: t(item.titleKey), value: item.id }))" />
     </div>
     <div v-for="name in audioInputs" :key="name" class="audio-tool-field"><label :for="`input-${name}`">{{ t('pluginTools.audio') }}<span v-if="audioInputs.length > 1"> · {{ name }}</span></label>
-      <div class="audio-tool-path"><n-input :id="`input-${name}`" v-model:value="paths[name]" :disabled="running || picking" :placeholder="t('tools.chooseAudio')" />
+      <div class="audio-tool-path"><n-input :id="`input-${name}`" :value="paths[name] ?? ''" :disabled="running || picking" :placeholder="t('tools.chooseAudio')" @update:value="paths[name] = $event" />
         <n-button secondary :disabled="running || picking" @click="pickAudio(name)"><template #icon><n-icon :component="FolderOpenOutline" /></template>{{ t('common.browse') }}</n-button>
       </div>
     </div>

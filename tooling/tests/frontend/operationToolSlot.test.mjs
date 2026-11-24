@@ -6,7 +6,7 @@ import { parse, compileTemplate } from 'vue/compiler-sfc'
 import { renderToString } from 'vue/server-renderer'
 import ts from 'typescript'
 
-test('the compiled operation template passes report through the named result slot', async () => {
+test('the completed operation renders an empty controlled input and passes its report to the result slot', async () => {
   const source = readFileSync(new URL('../../frontend/src/components/OperationTool.vue', import.meta.url), 'utf8')
   const { descriptor } = parse(source)
   const compiled = compileTemplate({ source: descriptor.template.content, filename: 'OperationTool.vue', id: 'operation-slot' })
@@ -20,7 +20,7 @@ test('the compiled operation template passes report through the named result slo
     setup: () => ({
       config: { titleKey: 'title', operations: [] }, t: key => key,
       results: { report: output }, running: false, progress: null, stateLabel: 'ready', elapsedLabel: '00:00',
-      activity: [], audioInputs: [], fields: [], loading: false, canRun: true, error: '', cancelled: false, spec: {},
+      activity: [], audioInputs: ['audio'], paths: {}, fields: [], loading: false, canRun: false, error: '', cancelled: false, spec: {},
       outputText: value => JSON.stringify(value),
     }),
     render,
@@ -34,7 +34,16 @@ test('the compiled operation template passes report through the named result slo
   for (const name of ['ToolPanelShell', 'ToolActivityDialog', 'AudioToolHeader', 'n-button']) {
     app.component(name, { setup: (_, { slots }) => () => Vue.h('div', null, Object.values(slots).flatMap(slot => slot())) })
   }
+  const inputValues = []
+  app.component('n-input', {
+    props: ['value'],
+    setup(props) {
+      inputValues.push(props.value)
+      return () => Vue.h('input')
+    },
+  })
   const html = await renderToString(app)
+  assert.deepEqual(inputValues, [''])
   assert.match(html, /data-rendered-port="report">-20<\/strong>/)
   assert.doesNotMatch(html, /tool-result-json/)
 })

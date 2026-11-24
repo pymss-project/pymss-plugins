@@ -95,6 +95,6 @@
   ],
   "pluginApiVersion": 2,
   "pluginId": "pymss.analysis",
-  "pluginVersion": "0.2.1",
-  "sourceDigest": "7074df9e69c0c12199e436cc9912c569a712c6aa1d88a79f87a1c61caddb95c0"
+  "pluginVersion": "0.2.2",
+  "sourceDigest": "165ddd462a9e990f2b51eaaf0da5456e30a8d831373f63887eb976ed1bc7fe4b"
 }

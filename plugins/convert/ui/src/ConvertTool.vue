@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/stores/settings'
 import AudioToolPanel from '@/features/audio-tools/shared/AudioToolPanel.vue'
 import AudioToolHeader from '@/features/audio-tools/shared/AudioToolHeader.vue'
 import { useAudioToolRuntime } from '@/features/audio-tools/runtime'
+import { remainingBatchInputs } from '@/features/audio-tools/batchInputs'
 import { useAudioInputDrop } from '@/features/audio-tools/useAudioInputDrop'
 
 type ScanResult = { files: string[]; warnings: string[] }
@@ -51,13 +52,18 @@ async function pickFolder() {
   if (result.warnings?.length) message.warning(t('tools.folderScanWarnings', { count: result.warnings.length }))
 }
 async function pickOutput() { const value = await invoke<string | null>('pick_output_folder'); if (value) outputDir.value = value }
-function run() { void runtime.execute('convert', { inputs: inputs.value, outputDir: outputDir.value, outputFormat: outputFormat.value, sampleRate: sampleRate.value, channels: channels.value, wavBitDepth: wavBitDepth.value, flacBitDepth: flacBitDepth.value, mp3BitRate: mp3BitRate.value, oggBitRate: oggBitRate.value }) }
+async function run() {
+  const submitted = new Set(inputs.value)
+  const result = await runtime.execute('convert', { inputs: [...submitted], outputDir: outputDir.value, outputFormat: outputFormat.value, sampleRate: sampleRate.value, channels: channels.value, wavBitDepth: wavBitDepth.value, flacBitDepth: flacBitDepth.value, mp3BitRate: mp3BitRate.value, oggBitRate: oggBitRate.value })
+  if (result?.operation === 'convert') inputs.value = remainingBatchInputs(inputs.value, submitted, result)
+}
 const { dropZone: inputDropZone, dragging: inputDragging, scanning: inputScanning } = useAudioInputDrop({ disabled: () => state.value.anyBusy, accept: addInputs })
 </script>
 <template>
+  <div ref="inputDropZone" :aria-busy="inputScanning">
   <AudioToolPanel tool="convert" :status-title="t('tools.processingResult')" :status-hint="t('tools.convertHint')">
     <AudioToolHeader :icon="SwapHorizontalOutline" :title="t('tools.convertTitle')" :description="t('tools.convertDescription')" />
-    <div ref="inputDropZone" :class="{ 'audio-tool-drop--active': inputDragging }" :aria-busy="inputScanning" data-guide="tool-input" class="audio-tool-field"><div class="audio-tool-field-heading"><label>{{ t('tools.inputFiles') }}</label><span>{{ t('tools.selectedCount', { count: inputs.length }) }}</span></div>
+    <div :class="{ 'audio-tool-drop--active': inputDragging }" :aria-busy="inputScanning" data-guide="tool-input" class="audio-tool-field"><div class="audio-tool-field-heading"><label>{{ t('tools.inputFiles') }}</label><span>{{ t('tools.selectedCount', { count: inputs.length }) }}</span></div>
       <div class="audio-tool-picker-grid"><button class="audio-tool-picker" :disabled="state.anyBusy || inputScanning" @click="pickFiles"><n-icon :component="DocumentOutline" size="20" />{{ inputs.length ? t('tools.addFiles') : t('tools.chooseFiles') }}</button><button class="audio-tool-picker" :disabled="state.anyBusy || inputScanning" @click="pickFolder"><n-icon :component="FolderOpenOutline" size="20" />{{ t('tools.addInputFolder') }}</button></div>
       <div v-if="inputs.length" class="audio-tool-files"><div v-for="path in inputs" :key="path"><span :title="path">{{ fileName(path) }}</span><button :title="t('tools.removeFile')" :disabled="state.anyBusy" @click="inputs = inputs.filter(item => item !== path)"><n-icon :component="CloseCircleOutline" /></button></div></div>
     </div>
@@ -66,4 +72,5 @@ const { dropZone: inputDropZone, dragging: inputDragging, scanning: inputScannin
     <n-alert v-if="channels === 2" type="info" :bordered="false">{{ t('tools.stereoFromMonoHint') }}</n-alert>
     <div class="audio-tool-actions"><n-button type="primary" :loading="state.busy" :disabled="state.anyBusy || inputScanning || !inputs.length || !outputDir" @click="run">{{ t('tools.startConvert') }}</n-button></div>
   </AudioToolPanel>
+  </div>
 </template>
