@@ -76,7 +76,7 @@ class TimingRuntimeTests(unittest.TestCase):
             metadata = json.loads((output / "runtime.json").read_text(encoding="utf-8"))
             self.assertEqual(metadata["sha256"], hashlib.sha256((output / "radius.exe").read_bytes()).hexdigest())
             self.assertEqual(metadata["license"], "LGPL-3.0-or-later")
-            self.assertEqual(metadata["version"], "0.3.1")
+            self.assertEqual(metadata["version"], "0.4.0")
             self.assertEqual(metadata["packageVersion"], "0.3.0")
 
     def test_shipped_engines_have_matching_platform_manifests_and_binary_hashes(self):

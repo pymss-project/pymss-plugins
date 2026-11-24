@@ -1,25 +1,25 @@
 # Radius native runtime
 
-The packaged engine is radius-rs release 0.3.1, maintained at:
+The packaged engine is radius-rs release 0.4.0, maintained at:
 https://github.com/SUC-DriverOld/radius-rs
 
-Source revision: `696dba8acb900a87897e42e9b2d0ea4c4521bfb1`.
+Source revision: `46dc13e46debc4c035e2c9a01b857299ea10effe`.
 Corresponding upstream source archive:
-https://github.com/SUC-DriverOld/radius-rs/archive/696dba8acb900a87897e42e9b2d0ea4c4521bfb1.tar.gz
+https://github.com/SUC-DriverOld/radius-rs/archive/46dc13e46debc4c035e2c9a01b857299ea10effe.tar.gz
 
-The v0.3.1 source still declares Cargo package version 0.3.0, and its CLI
+The v0.4.0 source still declares Cargo package version 0.3.0, and its CLI
 reports `radius 0.3.0`. The release asset SHA256 and source revision above
-identify the packaged v0.3.1 fix; `packageVersion` records the upstream value.
+identify the packaged v0.4.0 release; `packageVersion` records the upstream value.
 
 The native program is licensed under LGPL-3.0-or-later, as declared in that
 revision's Cargo.toml. The upstream LICENSE and the GPLv3 terms it incorporates
 are included as `LICENSE.radius` and `COPYING.GPL3` beside each executable.
 The Python adapter has its own MIT license. Earlier development notices about
-MIT authorization do not describe the packaged 0.3.1 release's license.
+MIT authorization do not describe the packaged 0.4.0 release's license.
 Upstream derivation credits remain in the source repository README.
 
 Windows x86_64, macOS arm64 and Linux x86_64 CLI releases are included under `bin/`.
-The x86_64 builds require AVX and FMA. The official Linux v0.3.1 executable
+The x86_64 builds require AVX and FMA. The official Linux v0.4.0 executable
 has a highest strong GLIBC requirement of 2.34; the adapter requires glibc
 2.34 or newer. Upstream builds and checks it on Ubuntu 22.04 (glibc 2.35).
 Older glibc systems need an upstream build compiled against an older baseline;

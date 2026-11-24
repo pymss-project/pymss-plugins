@@ -28,13 +28,13 @@ RELEASES = {
         {"rubberband": "rubberband", "COPYING": "COPYING", "README.md": "README.md", "CHANGELOG": "CHANGELOG"},
     ),
 }
-RADIUS_VERSION = "0.3.1"
+RADIUS_VERSION = "0.4.0"
 RADIUS_PACKAGE_VERSION = "0.3.0"
-RADIUS_COMMIT = "696dba8acb900a87897e42e9b2d0ea4c4521bfb1"
+RADIUS_COMMIT = "46dc13e46debc4c035e2c9a01b857299ea10effe"
 RADIUS_RELEASES = {
-    "win32-x86_64": ("radius-0.3.1-windows-x64.exe", "14ba8605aa85dda8fe8a03e183550ca9abbc2a2e94e47a207009383631f04e5d"),
-    "darwin-arm64": ("radius-0.3.1-macOS-arm64", "579467e22f78762b189f857a01d6e958171ddcf94497b2725c14819eab206c57"),
-    "linux-x86_64": ("radius-0.3.1-linux-x64", "67bd00fce23b916903cd192da4e78566435a3602d95108c4f6e5dd2ba48a1df3"),
+    "win32-x86_64": ("radius-0.4.0-windows-x64.exe", "17eff7157f1b84c18cd5f49f035a6a1a5db90f39b5755c3b9e052686a9a3bfd6"),
+    "darwin-arm64": ("radius-0.4.0-macOS-arm64", "4b1b521c3484ad170822837f6eb2248da475f6fea3cf167951e2b45abecb84d1"),
+    "linux-x86_64": ("radius-0.4.0-linux-x64", "de9b924405b48c3900c33a373ec4fbb8321cf178a2cb6e2226fd203d73923e0d"),
 }
 RADIUS_TARGETS = set(RADIUS_RELEASES)
 RADIUS_REQUIREMENTS = {
@@ -149,7 +149,7 @@ def main(argv=None) -> int:
     parser.add_argument("--target", default=target)
     parser.add_argument("--engine", choices=["all", "rubberband", "radius"], default="all")
     parser.add_argument("--archive", type=Path, help="Use a previously downloaded official archive (SHA256 is still checked)")
-    parser.add_argument("--radius-binary", type=Path, help="Use the pinned Radius 0.3.1 release executable (SHA256 is checked)")
+    parser.add_argument("--radius-binary", type=Path, help=f"Use the pinned Radius {RADIUS_VERSION} release executable (SHA256 is checked)")
     parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[1] / "bin")
     args = parser.parse_args(argv)
     if (args.engine == "radius" or args.engine == "all" and args.target in RADIUS_TARGETS) and args.radius_binary is None:
